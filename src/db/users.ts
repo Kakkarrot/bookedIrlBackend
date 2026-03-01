@@ -2,6 +2,8 @@ import { randomUUID } from "crypto";
 import type { DecodedIdToken } from "firebase-admin/auth";
 import { pool } from "./pool";
 
+const allowedProviders = new Set(["google.com", "apple.com", "phone"]);
+
 function deriveDisplayName(token: DecodedIdToken) {
   if (token.name) return token.name;
   if (token.email) return token.email.split("@")[0];
@@ -11,6 +13,9 @@ function deriveDisplayName(token: DecodedIdToken) {
 
 export async function getOrCreateUserId(token: DecodedIdToken) {
   const provider = token.firebase?.sign_in_provider ?? "firebase";
+  if (!allowedProviders.has(provider)) {
+    throw new Error("unsupported_auth_provider");
+  }
   const providerUserId = token.uid;
 
   const identityResult = await pool.query(

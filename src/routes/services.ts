@@ -7,12 +7,28 @@ import { requireUser } from "../lib/auth";
 const createServiceSchema = z.object({
   title: z.string().min(2).max(80),
   description: z.string().max(500).optional(),
-  priceCents: z.number().int().min(0),
+  priceDollars: z.number().int().min(0),
   durationMinutes: z.number().int().min(15).max(24 * 60)
+});
+
+const updateServiceSchema = z.object({
+  title: z.string().min(2).max(80).optional(),
+  description: z.string().max(500).optional(),
+  priceDollars: z.number().int().min(0).optional(),
+  durationMinutes: z.number().int().min(15).max(24 * 60).optional(),
+  isActive: z.boolean().optional()
+});
+
+const serviceIdParamsSchema = z.object({
+  serviceId: z.string().uuid()
 });
 
 const listServicesSchema = z.object({
   userIds: z.string().optional()
+});
+
+const userIdParamsSchema = z.object({
+  userId: z.string().uuid()
 });
 
 export async function serviceRoutes(app: FastifyInstance) {
@@ -27,15 +43,51 @@ export async function serviceRoutes(app: FastifyInstance) {
 
     const result = userIds.length
       ? await pool.query(
-          "SELECT id, user_id, title, description, price_cents, duration_minutes, is_active FROM services WHERE user_id = ANY($1::uuid[]) ORDER BY created_at DESC",
+          `
+          SELECT s.id, s.user_id, s.title, s.description, s.price_dollars, s.duration_minutes, s.is_active
+          FROM services s
+          JOIN users u ON u.id = s.user_id
+          WHERE s.user_id = ANY($1::uuid[])
+            AND u.discoverable = true
+            AND s.is_active = true
+          ORDER BY s.created_at DESC
+          `,
           [userIds]
         )
       : await pool.query(
-          "SELECT id, user_id, title, description, price_cents, duration_minutes, is_active FROM services WHERE user_id = $1 ORDER BY created_at DESC",
+          "SELECT id, user_id, title, description, price_dollars, duration_minutes, is_active FROM services WHERE user_id = $1 ORDER BY created_at DESC",
           [auth.userId]
         );
 
     reply.send(result.rows);
+  });
+
+  app.get("/services/:serviceId", async (request, reply) => {
+    const auth = await requireUser(request, reply);
+    if (!auth) return;
+
+    const params = serviceIdParamsSchema.parse(request.params);
+
+    const result = await pool.query(
+      `
+      SELECT s.id, s.user_id, s.title, s.description, s.price_dollars, s.duration_minutes, s.is_active
+      FROM services s
+      JOIN users u ON u.id = s.user_id
+      WHERE s.id = $1
+        AND (
+          s.user_id = $2
+          OR (u.discoverable = true AND s.is_active = true)
+        )
+      `,
+      [params.serviceId, auth.userId]
+    );
+
+    if (!result.rowCount) {
+      reply.code(404).send({ error: "service_not_found" });
+      return;
+    }
+
+    reply.send(result.rows[0]);
   });
 
   app.post("/services", async (request, reply) => {
@@ -56,17 +108,149 @@ export async function serviceRoutes(app: FastifyInstance) {
     const serviceId = randomUUID();
 
     await pool.query(
-      "INSERT INTO services (id, user_id, title, description, price_cents, duration_minutes) VALUES ($1, $2, $3, $4, $5, $6)",
+      "INSERT INTO services (id, user_id, title, description, price_dollars, duration_minutes) VALUES ($1, $2, $3, $4, $5, $6)",
       [
         serviceId,
         auth.userId,
         payload.title,
         payload.description ?? null,
-        payload.priceCents,
+        payload.priceDollars,
         payload.durationMinutes
       ]
     );
 
     reply.code(201).send({ id: serviceId });
+  });
+
+  app.patch("/services/:serviceId", async (request, reply) => {
+    const auth = await requireUser(request, reply);
+    if (!auth) return;
+
+    const params = serviceIdParamsSchema.parse(request.params);
+    const payload = updateServiceSchema.parse(request.body);
+
+    const serviceResult = await pool.query(
+      "SELECT user_id FROM services WHERE id = $1",
+      [params.serviceId]
+    );
+
+    if (!serviceResult.rowCount) {
+      reply.code(404).send({ error: "service_not_found" });
+      return;
+    }
+
+    if (serviceResult.rows[0].user_id !== auth.userId) {
+      reply.code(403).send({ error: "forbidden" });
+      return;
+    }
+
+    await pool.query(
+      `UPDATE services
+       SET title = COALESCE($1, title),
+           description = COALESCE($2, description),
+           price_dollars = COALESCE($3, price_dollars),
+           duration_minutes = COALESCE($4, duration_minutes),
+           is_active = COALESCE($5, is_active),
+           updated_at = now()
+       WHERE id = $6`,
+      [
+        payload.title ?? null,
+        payload.description ?? null,
+        payload.priceDollars ?? null,
+        payload.durationMinutes ?? null,
+        payload.isActive ?? null,
+        params.serviceId
+      ]
+    );
+
+    reply.send({ ok: true });
+  });
+
+  app.post("/users/:userId/services", async (request, reply) => {
+    const auth = await requireUser(request, reply);
+    if (!auth) return;
+
+    const params = userIdParamsSchema.parse(request.params);
+    if (params.userId !== auth.userId) {
+      reply.code(403).send({ error: "forbidden" });
+      return;
+    }
+
+    const payload = createServiceSchema.parse(request.body);
+    const countResult = await pool.query(
+      "SELECT COUNT(*)::int AS count FROM services WHERE user_id = $1",
+      [params.userId]
+    );
+
+    if (countResult.rows[0].count >= 3) {
+      reply.code(400).send({ error: "service_limit_reached" });
+      return;
+    }
+
+    const serviceId = randomUUID();
+
+    await pool.query(
+      "INSERT INTO services (id, user_id, title, description, price_dollars, duration_minutes) VALUES ($1, $2, $3, $4, $5, $6)",
+      [
+        serviceId,
+        params.userId,
+        payload.title,
+        payload.description ?? null,
+        payload.priceDollars,
+        payload.durationMinutes
+      ]
+    );
+
+    reply.code(201).send({ id: serviceId });
+  });
+
+  app.delete("/services/:serviceId", async (request, reply) => {
+    const auth = await requireUser(request, reply);
+    if (!auth) return;
+
+    const params = serviceIdParamsSchema.parse(request.params);
+
+    const serviceResult = await pool.query(
+      "SELECT user_id FROM services WHERE id = $1",
+      [params.serviceId]
+    );
+
+    if (!serviceResult.rowCount) {
+      reply.code(404).send({ error: "service_not_found" });
+      return;
+    }
+
+    if (serviceResult.rows[0].user_id !== auth.userId) {
+      reply.code(403).send({ error: "forbidden" });
+      return;
+    }
+
+    await pool.query("DELETE FROM services WHERE id = $1", [params.serviceId]);
+    reply.send({ ok: true });
+  });
+
+  app.get("/users/:userId/services", async (request, reply) => {
+    const auth = await requireUser(request, reply);
+    if (!auth) return;
+
+    const params = userIdParamsSchema.parse(request.params);
+
+    const isSelf = params.userId === auth.userId;
+    const result = await pool.query(
+      isSelf
+        ? "SELECT id, user_id, title, description, price_dollars, duration_minutes, is_active FROM services WHERE user_id = $1 ORDER BY created_at DESC"
+        : `
+          SELECT s.id, s.user_id, s.title, s.description, s.price_dollars, s.duration_minutes, s.is_active
+          FROM services s
+          JOIN users u ON u.id = s.user_id
+          WHERE s.user_id = $1
+            AND u.discoverable = true
+            AND s.is_active = true
+          ORDER BY s.created_at DESC
+        `,
+      [params.userId]
+    );
+
+    reply.send(result.rows);
   });
 }

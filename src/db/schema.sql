@@ -37,7 +37,7 @@ CREATE TABLE IF NOT EXISTS services (
   user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   title text NOT NULL,
   description text,
-  price_cents int NOT NULL,
+  price_dollars int NOT NULL,
   duration_minutes int NOT NULL,
   is_active boolean NOT NULL DEFAULT true,
   created_at timestamptz NOT NULL DEFAULT now(),
@@ -89,6 +89,14 @@ CREATE TABLE IF NOT EXISTS messages (
   created_at timestamptz NOT NULL DEFAULT now()
 );
 
+CREATE TABLE IF NOT EXISTS chat_reads (
+  chat_id uuid NOT NULL REFERENCES chats(id) ON DELETE CASCADE,
+  user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  last_read_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (chat_id, user_id)
+);
+
 CREATE TABLE IF NOT EXISTS notifications (
   id uuid PRIMARY KEY,
   user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -106,5 +114,6 @@ CREATE INDEX IF NOT EXISTS bookings_seller_id_idx ON bookings(seller_id);
 CREATE INDEX IF NOT EXISTS chats_buyer_id_idx ON chats(buyer_id);
 CREATE INDEX IF NOT EXISTS chats_seller_id_idx ON chats(seller_id);
 CREATE INDEX IF NOT EXISTS messages_chat_id_idx ON messages(chat_id);
+CREATE INDEX IF NOT EXISTS chat_reads_user_id_idx ON chat_reads(user_id);
 CREATE INDEX IF NOT EXISTS notifications_user_id_idx ON notifications(user_id);
 CREATE INDEX IF NOT EXISTS user_locations_gix ON user_locations USING GIST(location);

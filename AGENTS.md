@@ -2,6 +2,28 @@
 
 - Operate as a senior engineer and UX-aware builder: clean architecture, clear contracts, and pragmatic defaults.
 - Always code as a senior engineer and UX designer, prioritizing clean, modern, human-readable experiences.
+- Backend stack: Fastify + TypeScript (CommonJS), Firebase Admin for auth, Postgres via `pg`, Zod for validation.
 - Prefer Postgres + clear data access boundaries; keep auth verification centralized.
 - Favor small, composable modules and explicit types over clever abstractions.
 - Keep environment config validated and fail fast on misconfiguration.
+- After adding any feature, update this file and `README.md` with the new capability details.
+- Feature: `GET /users/nearby-qualified` returns discoverable, bookable users with at least one photo and one active service, ordered by proximity to the authenticated user's location.
+- Feature: Auth accepts Firebase ID tokens from Google, Apple, or phone number providers (others rejected).
+- Feature: `GET /users/:userId` returns a user's profile, photos, social links, and services (private fields omitted for non-self; non-discoverable profiles return 404 to other users).
+- Feature: `POST /users` updates any user profile field plus photos, social links, and location for the authenticated user.
+- Feature: `POST /users/:userId/services` creates a new service for the authenticated user (userId must match).
+- Feature: `GET /users/:userId/services` returns services for a user (non-self requests only see active services if the user is discoverable).
+- Feature: `GET /services/:serviceId` returns a service (owner or public if active + discoverable).
+- Feature: `PATCH /services/:serviceId` updates a service (owner only).
+- Feature: `DELETE /services/:serviceId` deletes a service (owner only).
+- Feature: `POST /bookings` creates a booking for a service as the authenticated user.
+- Feature: `PATCH /bookings/:bookingId` updates booking status or scheduled time (buyer/seller only; accept/decline is seller-only).
+- Feature: `GET /users/:userId/bookings` returns bookings requested by other users for services owned by the authenticated user (supports `limit`/`offset`).
+- Feature: `GET /users/:userId/chats` returns all chats where the authenticated user is a buyer or seller (supports `limit`/`offset`).
+- Feature: `POST /bookings/:bookingId/chat` creates a chat for a booking (buyer/seller only).
+- Feature: `GET /chats/:id/messages` returns chat messages for a chat the authenticated user participates in.
+- Feature: `POST /chats/:id/read` updates the user's last-read timestamp for a chat.
+- Feature: `GET /chats` and `GET /users/:userId/chats` include an `unread_count` per chat.
+- Feature: `GET /services?userIds=uuid,uuid` returns active services for discoverable users.
+- Feature: `GET /users/photos?userIds=uuid,uuid` returns photos for discoverable users only.
+- Feature: `GET /notifications` returns notifications for the authenticated user (supports `limit`/`offset`).
