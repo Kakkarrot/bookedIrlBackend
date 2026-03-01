@@ -32,6 +32,9 @@ const listPhotosSchema = z.object({
   userIds: z.string()
 });
 
+type NearbyUserRow = { id: string };
+type PhotoRow = { user_id: string; url: string; sort_order: number };
+
 const userIdParamsSchema = z.object({
   userId: z.string().uuid()
 });
@@ -224,23 +227,23 @@ export async function userRoutes(app: FastifyInstance) {
       [query.lng, query.lat, radiusMeters, query.limit]
     );
 
-    const userIds = nearbyResult.rows.map((row) => row.id);
+    const userIds = (nearbyResult.rows as NearbyUserRow[]).map((row) => row.id);
     const photosResult = userIds.length
       ? await pool.query(
           "SELECT user_id, url, sort_order FROM user_photos WHERE user_id = ANY($1::uuid[]) ORDER BY sort_order",
           [userIds]
         )
-      : { rows: [] as any[] };
+      : { rows: [] as PhotoRow[] };
 
-    const photosByUser = new Map<string, any[]>();
-    for (const row of photosResult.rows) {
+    const photosByUser = new Map<string, PhotoRow[]>();
+    for (const row of photosResult.rows as PhotoRow[]) {
       const list = photosByUser.get(row.user_id) ?? [];
-      list.push({ url: row.url, sort_order: row.sort_order });
+      list.push({ url: row.url, sort_order: row.sort_order, user_id: row.user_id });
       photosByUser.set(row.user_id, list);
     }
 
     reply.send(
-      nearbyResult.rows.map((row) => ({
+      (nearbyResult.rows as NearbyUserRow[]).map((row) => ({
         ...row,
         photos: photosByUser.get(row.id) ?? []
       }))
@@ -297,23 +300,23 @@ export async function userRoutes(app: FastifyInstance) {
       [auth.userId, query.limit]
     );
 
-    const userIds = nearbyResult.rows.map((row) => row.id);
+    const userIds = (nearbyResult.rows as NearbyUserRow[]).map((row) => row.id);
     const photosResult = userIds.length
       ? await pool.query(
           "SELECT user_id, url, sort_order FROM user_photos WHERE user_id = ANY($1::uuid[]) ORDER BY sort_order",
           [userIds]
         )
-      : { rows: [] as any[] };
+      : { rows: [] as PhotoRow[] };
 
-    const photosByUser = new Map<string, any[]>();
-    for (const row of photosResult.rows) {
+    const photosByUser = new Map<string, PhotoRow[]>();
+    for (const row of photosResult.rows as PhotoRow[]) {
       const list = photosByUser.get(row.user_id) ?? [];
-      list.push({ url: row.url, sort_order: row.sort_order });
+      list.push({ url: row.url, sort_order: row.sort_order, user_id: row.user_id });
       photosByUser.set(row.user_id, list);
     }
 
     reply.send(
-      nearbyResult.rows.map((row) => ({
+      (nearbyResult.rows as NearbyUserRow[]).map((row) => ({
         ...row,
         photos: photosByUser.get(row.id) ?? []
       }))

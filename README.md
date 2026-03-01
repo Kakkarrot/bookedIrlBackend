@@ -4,7 +4,7 @@ Minimal Fastify + TypeScript scaffold for the marketplace API.
 
 ## Tech stack
 
-- Runtime: Node.js (CommonJS)
+- Runtime: Node.js >= 20 (CommonJS)
 - Framework: Fastify
 - Language: TypeScript (tsx for dev)
 - Auth: Firebase Admin (token verification)
