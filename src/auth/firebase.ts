@@ -2,11 +2,15 @@ import admin from "firebase-admin";
 import { env } from "../config/env";
 
 if (!admin.apps.length) {
+  const privateKey = env.FIREBASE_PRIVATE_KEY_BASE64
+    ? Buffer.from(env.FIREBASE_PRIVATE_KEY_BASE64, "base64").toString("utf8")
+    : env.FIREBASE_PRIVATE_KEY;
+
   admin.initializeApp({
     credential: admin.credential.cert({
       projectId: env.FIREBASE_PROJECT_ID,
       clientEmail: env.FIREBASE_CLIENT_EMAIL,
-      privateKey: env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, "\n")
+      privateKey: privateKey?.replace(/\\n/g, "\n") ?? ""
     })
   });
 }

@@ -1,4 +1,8 @@
+.env
+.env.local
+.idea/
+*.iml
 node_modules/
 dist/
-.env
-.DS_Store
+npm-debug.log*
+*.log

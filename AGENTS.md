@@ -2,7 +2,7 @@
 
 - Operate as a senior engineer and UX-aware builder: clean architecture, clear contracts, and pragmatic defaults.
 - Always code as a senior engineer and UX designer, prioritizing clean, modern, human-readable experiences.
-- Backend stack: Fastify + TypeScript (CommonJS), Firebase Admin for auth, Postgres via `pg`, Zod for validation.
+- Backend stack: Fastify + TypeScript (CommonJS), Firebase Admin for auth, Supabase Postgres via `pg`, Zod for validation. Deploy backend on Render.
 - Prefer Postgres + clear data access boundaries; keep auth verification centralized.
 - Favor small, composable modules and explicit types over clever abstractions.
 - Keep environment config validated and fail fast on misconfiguration.
@@ -27,3 +27,4 @@
 - Feature: `GET /services?userIds=uuid,uuid` returns active services for discoverable users.
 - Feature: `GET /users/photos?userIds=uuid,uuid` returns photos for discoverable users only.
 - Feature: `GET /notifications` returns notifications for the authenticated user (supports `limit`/`offset`).
+- Feature: Planned Supabase Realtime integration for live chat.

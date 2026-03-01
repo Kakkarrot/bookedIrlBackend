@@ -8,7 +8,8 @@ Minimal Fastify + TypeScript scaffold for the marketplace API.
 - Framework: Fastify
 - Language: TypeScript (tsx for dev)
 - Auth: Firebase Admin (token verification)
-- Database: Postgres (via `pg`, ORM TBD)
+- Database: Supabase Postgres (via `pg`, ORM TBD)
+- Deployment: Render for backend runtime (Supabase remains the database)
 - Validation: Zod
 
 ## Features
@@ -33,12 +34,21 @@ Minimal Fastify + TypeScript scaffold for the marketplace API.
 - List services for users: `GET /services?userIds=uuid,uuid` returns active services for discoverable users.
 - User photos: `GET /users/photos?userIds=uuid,uuid` returns photos only for discoverable users.
 - Notifications: `GET /notifications` returns notifications for the authenticated user (supports `limit`/`offset`).
+- Realtime: planned Supabase Realtime integration for live chat.
 
 ## Getting started
 
 ```bash
 npm install
 npm run dev
+```
+
+## Database setup
+
+Apply the schema to your Supabase Postgres instance:
+
+```bash
+psql "$DATABASE_URL" -f src/db/schema.sql
 ```
 
 ## Environment
