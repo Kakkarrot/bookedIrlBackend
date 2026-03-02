@@ -12,14 +12,24 @@ Minimal Fastify + TypeScript scaffold for the marketplace API.
 - Deployment: Render for backend runtime (Supabase remains the database)
 - Validation: Zod
 
+## API schema
+
+The canonical OpenAPI spec lives at `openapi.yaml`.
+
+All API requests must include `X-API-Version` matching `openapi.yaml` `info.version`. Mismatches return `426`.
+
+The OpenAPI spec is served at `GET /openapi.yaml` for client generation.
+
 ## Features
 
-- Nearby qualified users: `GET /users/nearby-qualified` returns discoverable, bookable users with at least one photo and one active service, sorted by closest distance to the authenticated user's saved location.
+- Nearby qualified users: `GET /users/nearby-qualified` returns users with at least one photo and one active (bookable) service, sorted by closest distance to the authenticated user's saved location.
 - Auth: login/sign-up via Firebase ID tokens for Google, Apple, or phone number providers.
-- User profile lookup: `GET /users/:userId` returns a user's profile, photos, social links, and services (private fields omitted for non-self; non-discoverable profiles return 404 to other users).
+- User profile lookup: `GET /users/:userId` returns a user's profile, photos, social links, and services (private fields omitted for non-self; users without photos or active services return 404 to other users).
 - Profile updates: `POST /users` updates any user profile field plus photos, social links, and location for the authenticated user.
+- Username updates return `409 { "error": "username_taken" }` on duplicates.
+- Onboarding intents: `POST /users` accepts `intentLooking` and `intentOffering` booleans.
 - Create service for user: `POST /users/:userId/services` creates a new service for the authenticated user (userId must match).
-- List services for user: `GET /users/:userId/services` returns services for a user (non-self requests only see active services if the user is discoverable).
+- List services for user: `GET /users/:userId/services` returns services for a user (non-self requests only see active services when user has photos and active services).
 - Service detail: `GET /services/:serviceId` returns a service (owner or public if active + discoverable).
 - Update service: `PATCH /services/:serviceId` updates a service (owner only).
 - Delete service: `DELETE /services/:serviceId` deletes a service (owner only).
@@ -31,8 +41,8 @@ Minimal Fastify + TypeScript scaffold for the marketplace API.
 - List chat messages: `GET /chats/:id/messages` returns messages for a chat the authenticated user participates in.
 - Mark chat read: `POST /chats/:id/read` updates the user's last-read timestamp for a chat.
 - Unread counts: `GET /chats` and `GET /users/:userId/chats` include `unread_count`.
-- List services for users: `GET /services?userIds=uuid,uuid` returns active services for discoverable users.
-- User photos: `GET /users/photos?userIds=uuid,uuid` returns photos only for discoverable users.
+- List services for users: `GET /services?userIds=uuid,uuid` returns active services for users who have photos and active services.
+- User photos: `GET /users/photos?userIds=uuid,uuid` returns photos only for users who have photos and active services.
 - Notifications: `GET /notifications` returns notifications for the authenticated user (supports `limit`/`offset`).
 - Realtime: planned Supabase Realtime integration for live chat.
 
@@ -50,6 +60,8 @@ Apply the schema to your Supabase Postgres instance:
 ```bash
 psql "$DATABASE_URL" -f src/db/schema.sql
 ```
+
+Note: new users are created with blank profile fields. Discoverability is derived from having photos and active services.
 
 ## Environment
 

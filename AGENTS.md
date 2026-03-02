@@ -7,13 +7,16 @@
 - Favor small, composable modules and explicit types over clever abstractions.
 - Keep environment config validated and fail fast on misconfiguration.
 - After adding any feature, update this file and `README.md` with the new capability details.
-- Feature: `GET /users/nearby-qualified` returns discoverable, bookable users with at least one photo and one active service, ordered by proximity to the authenticated user's location.
+- Feature: `GET /users/nearby-qualified` returns users with at least one photo and one active (bookable) service, ordered by proximity to the authenticated user's location.
 - Feature: Auth accepts Firebase ID tokens from Google, Apple, or phone number providers (others rejected).
-- Feature: `GET /users/:userId` returns a user's profile, photos, social links, and services (private fields omitted for non-self; non-discoverable profiles return 404 to other users).
+- Feature: New users are created with blank profile fields; discoverability is derived from having photos and active services.
+- Feature: `GET /users/:userId` returns a user's profile, photos, social links, and services (private fields omitted for non-self; users without photos or active services return 404 to other users).
 - Feature: `POST /users` updates any user profile field plus photos, social links, and location for the authenticated user.
+- Feature: Username updates return `409 { "error": "username_taken" }` on duplicates.
+- Feature: `POST /users` accepts onboarding intent fields `intentLooking` and `intentOffering`.
 - Feature: `POST /users/:userId/services` creates a new service for the authenticated user (userId must match).
-- Feature: `GET /users/:userId/services` returns services for a user (non-self requests only see active services if the user is discoverable).
-- Feature: `GET /services/:serviceId` returns a service (owner or public if active + discoverable).
+- Feature: `GET /users/:userId/services` returns services for a user (non-self requests only see active services when user has photos and active services).
+- Feature: `GET /services/:serviceId` returns a service (owner or public if active and user has photos + active services).
 - Feature: `PATCH /services/:serviceId` updates a service (owner only).
 - Feature: `DELETE /services/:serviceId` deletes a service (owner only).
 - Feature: `POST /bookings` creates a booking for a service as the authenticated user.
@@ -24,7 +27,10 @@
 - Feature: `GET /chats/:id/messages` returns chat messages for a chat the authenticated user participates in.
 - Feature: `POST /chats/:id/read` updates the user's last-read timestamp for a chat.
 - Feature: `GET /chats` and `GET /users/:userId/chats` include an `unread_count` per chat.
-- Feature: `GET /services?userIds=uuid,uuid` returns active services for discoverable users.
-- Feature: `GET /users/photos?userIds=uuid,uuid` returns photos for discoverable users only.
+- Feature: `GET /services?userIds=uuid,uuid` returns active services for users who have photos and active services.
+- Feature: `GET /users/photos?userIds=uuid,uuid` returns photos for users who have photos and active services.
 - Feature: `GET /notifications` returns notifications for the authenticated user (supports `limit`/`offset`).
 - Feature: Planned Supabase Realtime integration for live chat.
+- Feature: OpenAPI spec stored in `openapi.yaml` and served at `GET /openapi.yaml` for client generation.
+- Build: `npm run build` runs `tsc`.
+- Feature: All API requests must send `X-API-Version` matching `openapi.yaml` `info.version`; mismatches return `426`.

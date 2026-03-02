@@ -6,11 +6,17 @@ import { requireUser } from "../lib/auth";
 
 const updateUserSchema = z.object({
   displayName: z.string().min(2).max(64).optional(),
-  username: z.string().min(2).max(32).optional(),
+  username: z
+    .string()
+    .min(1)
+    .max(50)
+    .regex(/^[a-zA-Z0-9]+$/)
+    .transform((value) => value.toLowerCase())
+    .optional(),
   title: z.string().max(80).optional(),
   bio: z.string().max(500).optional(),
-  discoverable: z.boolean().optional(),
-  bookable: z.boolean().optional(),
+  intentLooking: z.boolean().optional(),
+  intentOffering: z.boolean().optional(),
   photos: z.array(z.string().url()).max(6).optional(),
   socialLinks: z.array(z.string().url()).max(10).optional(),
   location: z
@@ -49,7 +55,7 @@ export async function userRoutes(app: FastifyInstance) {
     if (!auth) return;
 
     const userResult = await pool.query(
-      "SELECT id, display_name, username, email, phone, title, bio, discoverable, bookable FROM users WHERE id = $1",
+      "SELECT id, display_name, username, email, phone, title, bio, intent_looking, intent_offering FROM users WHERE id = $1",
       [auth.userId]
     );
 
@@ -88,7 +94,7 @@ export async function userRoutes(app: FastifyInstance) {
     const params = userIdParamsSchema.parse(request.params);
 
     const userResult = await pool.query(
-      "SELECT id, display_name, username, email, phone, title, bio, discoverable, bookable FROM users WHERE id = $1",
+      "SELECT id, display_name, username, email, phone, title, bio, intent_looking, intent_offering FROM users WHERE id = $1",
       [params.userId]
     );
 
@@ -99,9 +105,29 @@ export async function userRoutes(app: FastifyInstance) {
 
     const baseUser = userResult.rows[0];
     const isSelf = auth.userId === params.userId;
-    if (!isSelf && !baseUser.discoverable) {
-      reply.code(404).send({ error: "user_not_found" });
-      return;
+    if (!isSelf) {
+      const discoverableResult = await pool.query(
+        `
+          SELECT EXISTS (
+            SELECT 1
+            FROM user_photos up
+            WHERE up.user_id = $1
+          ) AS has_photos,
+          EXISTS (
+            SELECT 1
+            FROM services s
+            WHERE s.user_id = $1
+              AND s.is_active = true
+          ) AS has_bookable_services
+        `,
+        [params.userId]
+      );
+
+      const { has_photos, has_bookable_services } = discoverableResult.rows[0];
+      if (!has_photos || !has_bookable_services) {
+        reply.code(404).send({ error: "user_not_found" });
+        return;
+      }
     }
 
     const [photos, socialLinks, services] = await Promise.all([
@@ -150,18 +176,39 @@ export async function userRoutes(app: FastifyInstance) {
     try {
       await client.query("BEGIN");
 
+      try {
       await client.query(
-        "UPDATE users SET display_name = COALESCE($1, display_name), username = COALESCE($2, username), title = COALESCE($3, title), bio = COALESCE($4, bio), discoverable = COALESCE($5, discoverable), bookable = COALESCE($6, bookable), updated_at = now() WHERE id = $7",
+        `UPDATE users
+         SET display_name = COALESCE($1, display_name),
+             username = COALESCE(LOWER($2), username),
+             title = COALESCE($3, title),
+             bio = COALESCE($4, bio),
+             intent_looking = COALESCE($5, intent_looking),
+             intent_offering = COALESCE($6, intent_offering),
+             updated_at = now()
+         WHERE id = $7`,
         [
           payload.displayName ?? null,
           payload.username ?? null,
           payload.title ?? null,
           payload.bio ?? null,
-          payload.discoverable ?? null,
-          payload.bookable ?? null,
+          payload.intentLooking ?? null,
+          payload.intentOffering ?? null,
           auth.userId
         ]
       );
+      } catch (error: any) {
+        if (
+          error?.code === "23505" &&
+          (error?.constraint === "users_username_lower_idx" ||
+            String(error?.detail ?? "").includes("username"))
+        ) {
+          reply.code(409).send({ error: "username_taken" });
+          await client.query("ROLLBACK");
+          return;
+        }
+        throw error;
+      }
 
       if (payload.photos) {
         await client.query("DELETE FROM user_photos WHERE user_id = $1", [auth.userId]);
@@ -214,12 +261,16 @@ export async function userRoutes(app: FastifyInstance) {
                u.username,
                u.title,
                u.bio,
-               u.discoverable,
-               u.bookable,
                ST_Distance(ul.location, ST_MakePoint($1, $2)::geography) AS distance_meters
         FROM user_locations ul
         JOIN users u ON u.id = ul.user_id
-        WHERE u.discoverable = true
+        WHERE EXISTS (SELECT 1 FROM user_photos up WHERE up.user_id = u.id)
+          AND EXISTS (
+            SELECT 1
+            FROM services s
+            WHERE s.user_id = u.id
+              AND s.is_active = true
+          )
           AND ST_DWithin(ul.location, ST_MakePoint($1, $2)::geography, $3)
         ORDER BY distance_meters ASC
         LIMIT $4
@@ -278,15 +329,11 @@ export async function userRoutes(app: FastifyInstance) {
                u.username,
                u.title,
                u.bio,
-               u.discoverable,
-               u.bookable,
                ST_Distance(ul.location, me.location) AS distance_meters
         FROM me
         JOIN user_locations ul ON true
         JOIN users u ON u.id = ul.user_id
         WHERE u.id <> $1
-          AND u.discoverable = true
-          AND u.bookable = true
           AND EXISTS (SELECT 1 FROM user_photos up WHERE up.user_id = u.id)
           AND EXISTS (
             SELECT 1
@@ -339,9 +386,13 @@ export async function userRoutes(app: FastifyInstance) {
       `
         SELECT up.user_id, up.url, up.sort_order
         FROM user_photos up
-        JOIN users u ON u.id = up.user_id
         WHERE up.user_id = ANY($1::uuid[])
-          AND u.discoverable = true
+          AND EXISTS (
+            SELECT 1
+            FROM services s
+            WHERE s.user_id = up.user_id
+              AND s.is_active = true
+          )
         ORDER BY up.sort_order
       `,
       [userIds]

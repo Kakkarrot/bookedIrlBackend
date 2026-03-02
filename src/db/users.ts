@@ -4,13 +4,6 @@ import { pool } from "./pool";
 
 const allowedProviders = new Set(["google.com", "apple.com", "phone"]);
 
-function deriveDisplayName(token: DecodedIdToken) {
-  if (token.name) return token.name;
-  if (token.email) return token.email.split("@")[0];
-  if (token.phone_number) return token.phone_number;
-  return "New user";
-}
-
 export async function getOrCreateUserId(token: DecodedIdToken) {
   const provider = token.firebase?.sign_in_provider ?? "firebase";
   if (!allowedProviders.has(provider)) {
@@ -24,15 +17,38 @@ export async function getOrCreateUserId(token: DecodedIdToken) {
   );
 
   if (identityResult.rowCount) {
-    return identityResult.rows[0].user_id as string;
+    const userId = identityResult.rows[0].user_id as string;
+
+    if (token.email) {
+      await pool.query("UPDATE users SET email = COALESCE(email, $1) WHERE id = $2", [
+        token.email,
+        userId
+      ]);
+      await pool.query(
+        "UPDATE auth_identities SET email = COALESCE(email, $1) WHERE provider = $2 AND provider_user_id = $3",
+        [token.email, provider, providerUserId]
+      );
+    }
+
+    if (token.phone_number) {
+      await pool.query(
+        "UPDATE auth_identities SET phone = COALESCE(phone, $1) WHERE provider = $2 AND provider_user_id = $3",
+        [token.phone_number, provider, providerUserId]
+      );
+      await pool.query("UPDATE users SET phone = COALESCE(phone, $1) WHERE id = $2", [
+        token.phone_number,
+        userId
+      ]);
+    }
+
+    return userId;
   }
 
   const userId = randomUUID();
-  const displayName = deriveDisplayName(token);
 
   await pool.query(
     "INSERT INTO users (id, display_name, username, email, phone) VALUES ($1, $2, $3, $4, $5)",
-    [userId, displayName, token.name ?? null, token.email ?? null, token.phone_number ?? null]
+    [userId, null, null, token.email ?? null, token.phone_number ?? null]
   );
 
   await pool.query(

@@ -3,17 +3,19 @@ CREATE EXTENSION IF NOT EXISTS postgis;
 
 CREATE TABLE IF NOT EXISTS users (
   id uuid PRIMARY KEY,
-  display_name text NOT NULL,
-  username text UNIQUE,
+  display_name text,
+  username text,
   email text UNIQUE,
   phone text UNIQUE,
   title text,
   bio text,
-  discoverable boolean NOT NULL DEFAULT true,
-  bookable boolean NOT NULL DEFAULT true,
+  intent_looking boolean NOT NULL DEFAULT false,
+  intent_offering boolean NOT NULL DEFAULT false,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS users_username_lower_idx ON users (lower(username)) WHERE username IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS auth_identities (
   id uuid PRIMARY KEY,

@@ -46,10 +46,10 @@ export async function serviceRoutes(app: FastifyInstance) {
           `
           SELECT s.id, s.user_id, s.title, s.description, s.price_dollars, s.duration_minutes, s.is_active
           FROM services s
-          JOIN users u ON u.id = s.user_id
           WHERE s.user_id = ANY($1::uuid[])
-            AND u.discoverable = true
             AND s.is_active = true
+            AND EXISTS (SELECT 1 FROM user_photos up WHERE up.user_id = s.user_id)
+            AND EXISTS (SELECT 1 FROM services s2 WHERE s2.user_id = s.user_id AND s2.is_active = true)
           ORDER BY s.created_at DESC
           `,
           [userIds]
@@ -72,11 +72,14 @@ export async function serviceRoutes(app: FastifyInstance) {
       `
       SELECT s.id, s.user_id, s.title, s.description, s.price_dollars, s.duration_minutes, s.is_active
       FROM services s
-      JOIN users u ON u.id = s.user_id
       WHERE s.id = $1
         AND (
           s.user_id = $2
-          OR (u.discoverable = true AND s.is_active = true)
+          OR (
+            s.is_active = true
+            AND EXISTS (SELECT 1 FROM user_photos up WHERE up.user_id = s.user_id)
+            AND EXISTS (SELECT 1 FROM services s2 WHERE s2.user_id = s.user_id AND s2.is_active = true)
+          )
         )
       `,
       [params.serviceId, auth.userId]
@@ -242,10 +245,10 @@ export async function serviceRoutes(app: FastifyInstance) {
         : `
           SELECT s.id, s.user_id, s.title, s.description, s.price_dollars, s.duration_minutes, s.is_active
           FROM services s
-          JOIN users u ON u.id = s.user_id
           WHERE s.user_id = $1
-            AND u.discoverable = true
             AND s.is_active = true
+            AND EXISTS (SELECT 1 FROM user_photos up WHERE up.user_id = s.user_id)
+            AND EXISTS (SELECT 1 FROM services s2 WHERE s2.user_id = s.user_id AND s2.is_active = true)
           ORDER BY s.created_at DESC
         `,
       [params.userId]
