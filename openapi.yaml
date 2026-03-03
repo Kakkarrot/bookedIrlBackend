@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: BookedIRL Backend API
-  version: 0.1.2
+  version: 0.1.3
 servers:
   - url: http://localhost:4000
   - url: https://bookedirlbackend.onrender.com
@@ -651,7 +651,11 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/UserSocialLink"
-      required: [id, intent_looking, intent_offering, photos, socialLinks]
+        services:
+          type: array
+          items:
+            $ref: "#/components/schemas/Service"
+      required: [id, intent_looking, intent_offering, photos, socialLinks, services]
     UserUpdate:
       type: object
       properties:
