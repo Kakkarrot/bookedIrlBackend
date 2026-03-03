@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS users (
   username text,
   email text UNIQUE,
   phone text UNIQUE,
-  title text,
+  headline text,
   bio text,
   intent_looking boolean NOT NULL DEFAULT false,
   intent_offering boolean NOT NULL DEFAULT false,

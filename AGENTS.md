@@ -14,6 +14,7 @@
 - Feature: `POST /users` updates any user profile field plus photos, social links, and location for the authenticated user.
 - Feature: Username updates return `409 { "error": "username_taken" }` on duplicates.
 - Feature: `POST /users` accepts onboarding intent fields `intentLooking` and `intentOffering`.
+- Feature: User profile uses `headline` (short profession string) instead of `title`.
 - Feature: `POST /users/:userId/services` creates a new service for the authenticated user (userId must match).
 - Feature: `GET /users/:userId/services` returns services for a user (non-self requests only see active services when user has photos and active services).
 - Feature: `GET /services/:serviceId` returns a service (owner or public if active and user has photos + active services).

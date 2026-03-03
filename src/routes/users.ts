@@ -13,7 +13,7 @@ const updateUserSchema = z.object({
     .regex(/^[a-zA-Z0-9]+$/)
     .transform((value) => value.toLowerCase())
     .optional(),
-  title: z.string().max(80).optional(),
+  headline: z.string().max(80).optional(),
   bio: z.string().max(500).optional(),
   intentLooking: z.boolean().optional(),
   intentOffering: z.boolean().optional(),
@@ -55,7 +55,7 @@ export async function userRoutes(app: FastifyInstance) {
     if (!auth) return;
 
     const userResult = await pool.query(
-      "SELECT id, display_name, username, email, phone, title, bio, intent_looking, intent_offering FROM users WHERE id = $1",
+      "SELECT id, display_name, username, email, phone, headline, bio, intent_looking, intent_offering FROM users WHERE id = $1",
       [auth.userId]
     );
 
@@ -94,7 +94,7 @@ export async function userRoutes(app: FastifyInstance) {
     const params = userIdParamsSchema.parse(request.params);
 
     const userResult = await pool.query(
-      "SELECT id, display_name, username, email, phone, title, bio, intent_looking, intent_offering FROM users WHERE id = $1",
+        "SELECT id, display_name, username, email, phone, headline, bio, intent_looking, intent_offering FROM users WHERE id = $1",
       [params.userId]
     );
 
@@ -181,7 +181,7 @@ export async function userRoutes(app: FastifyInstance) {
         `UPDATE users
          SET display_name = COALESCE($1, display_name),
              username = COALESCE(LOWER($2), username),
-             title = COALESCE($3, title),
+             headline = COALESCE($3, headline),
              bio = COALESCE($4, bio),
              intent_looking = COALESCE($5, intent_looking),
              intent_offering = COALESCE($6, intent_offering),
@@ -190,7 +190,7 @@ export async function userRoutes(app: FastifyInstance) {
         [
           payload.displayName ?? null,
           payload.username ?? null,
-          payload.title ?? null,
+          payload.headline ?? null,
           payload.bio ?? null,
           payload.intentLooking ?? null,
           payload.intentOffering ?? null,
@@ -259,7 +259,7 @@ export async function userRoutes(app: FastifyInstance) {
         SELECT u.id,
                u.display_name,
                u.username,
-               u.title,
+               u.headline,
                u.bio,
                ST_Distance(ul.location, ST_MakePoint($1, $2)::geography) AS distance_meters
         FROM user_locations ul
@@ -327,7 +327,7 @@ export async function userRoutes(app: FastifyInstance) {
         SELECT u.id,
                u.display_name,
                u.username,
-               u.title,
+               u.headline,
                u.bio,
                ST_Distance(ul.location, me.location) AS distance_meters
         FROM me

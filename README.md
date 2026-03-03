@@ -62,6 +62,7 @@ psql "$DATABASE_URL" -f src/db/schema.sql
 ```
 
 Note: new users are created with blank profile fields. Discoverability is derived from having photos and active services.
+Profile field `headline` is the short profession string shown under the username (replaces the old `title` field).
 
 ## Environment
 
