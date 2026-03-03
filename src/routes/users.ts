@@ -74,7 +74,7 @@ export async function userRoutes(app: FastifyInstance) {
         [auth.userId]
       ),
       pool.query(
-        "SELECT id, title, description, price_dollars, duration_minutes, is_active FROM services WHERE user_id = $1 ORDER BY created_at DESC",
+        "SELECT id, user_id, title, description, price_dollars, duration_minutes, is_active FROM services WHERE user_id = $1 ORDER BY created_at DESC",
         [auth.userId]
       )
     ]);
@@ -141,8 +141,8 @@ export async function userRoutes(app: FastifyInstance) {
       ),
       pool.query(
         isSelf
-          ? "SELECT id, title, description, price_dollars, duration_minutes, is_active FROM services WHERE user_id = $1 ORDER BY created_at DESC"
-          : "SELECT id, title, description, price_dollars, duration_minutes, is_active FROM services WHERE user_id = $1 AND is_active = true ORDER BY created_at DESC",
+          ? "SELECT id, user_id, title, description, price_dollars, duration_minutes, is_active FROM services WHERE user_id = $1 ORDER BY created_at DESC"
+          : "SELECT id, user_id, title, description, price_dollars, duration_minutes, is_active FROM services WHERE user_id = $1 AND is_active = true ORDER BY created_at DESC",
         [params.userId]
       )
     ]);

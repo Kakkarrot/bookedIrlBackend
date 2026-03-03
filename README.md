@@ -68,8 +68,10 @@ Profile field `headline` is the short profession string shown under the username
 
 Copy `.env.example` to `.env` and update values.
 
-## Next steps
+## Roadmap (not in initial release)
 
-- Add Postgres (Prisma/Drizzle)
-- Add Firebase token verification
-- Add core endpoints (users, services, bookings, chats, messages)
+- Payments
+- Search and filtering
+- Service categories
+- Availability scheduling
+- Trust and safety tooling
