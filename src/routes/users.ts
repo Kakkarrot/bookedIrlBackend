@@ -13,7 +13,12 @@ const updateUserSchema = z.object({
     .regex(/^[a-zA-Z0-9]+$/)
     .transform((value) => value.toLowerCase())
     .optional(),
-  headline: z.string().max(80).optional(),
+  headline: z
+    .string()
+    .min(1)
+    .max(30)
+    .transform((value) => value.trim())
+    .optional(),
   bio: z.string().max(500).optional(),
   intentLooking: z.boolean().optional(),
   intentOffering: z.boolean().optional(),

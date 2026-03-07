@@ -10,6 +10,7 @@ import { chatRoutes } from "./routes/chats";
 import { notificationRoutes } from "./routes/notifications";
 import { apiVersion } from "./config/apiVersion";
 import { openapiRoutes } from "./routes/openapi";
+import { headlineRoutes } from "./routes/headlines";
 
 export function buildServer() {
   const app = Fastify({ logger: true });
@@ -42,6 +43,7 @@ export function buildServer() {
   app.register(chatRoutes);
   app.register(notificationRoutes);
   app.register(openapiRoutes);
+  app.register(headlineRoutes);
 
   return app;
 }

@@ -33,6 +33,7 @@ The OpenAPI spec is served at `GET /openapi.yaml` for client generation.
 - Service detail: `GET /services/:serviceId` returns a service (owner or public if active + discoverable).
 - Update service: `PATCH /services/:serviceId` updates a service (owner only).
 - Delete service: `DELETE /services/:serviceId` deletes a service (owner only).
+- Headline options: `GET /headlines` returns the allowed headline list for clients.
 - Create booking for service: `POST /bookings` creates a booking for a service as the authenticated user.
 - Update booking: `PATCH /bookings/:bookingId` updates booking status or scheduled time (buyer/seller only; accept/decline is seller-only).
 - List bookings for user’s services: `GET /users/:userId/bookings` returns bookings requested by other users for services owned by the authenticated user (supports `limit`/`offset`).

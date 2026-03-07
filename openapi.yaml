@@ -12,6 +12,7 @@ tags:
   - name: bookings
   - name: chats
   - name: notifications
+  - name: metadata
 paths:
   /health:
     get:
@@ -158,6 +159,23 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/UserPhotoItem"
+  /headlines:
+    get:
+      tags: [metadata]
+      summary: List allowed headline options
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  headlines:
+                    type: array
+                    items:
+                      type: string
+                required: [headlines]
   /services:
     get:
       tags: [services]

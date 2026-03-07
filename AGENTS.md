@@ -9,3 +9,4 @@
 - OpenAPI spec is `openapi.yaml` and served at `GET /openapi.yaml` for client generation.
 - All API requests must send `X-API-Version` matching `openapi.yaml` `info.version`; mismatches return `426`.
 - Build: `npm run build` runs `tsc`.
+- Metadata: `GET /headlines` returns the allowed headline options list.
