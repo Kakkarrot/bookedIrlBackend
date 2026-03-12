@@ -159,6 +159,62 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/UserPhotoItem"
+    post:
+      tags: [users]
+      security:
+        - bearerAuth: []
+      summary: Replace photos for the authenticated user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserPhotosUpdate"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkResponse"
+  /uploads/photos/sign:
+    post:
+      tags: [uploads]
+      security:
+        - bearerAuth: []
+      summary: Create signed upload URLs for profile photos
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PhotoUploadSignRequest"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PhotoUploadSignResponse"
+  /uploads/photos/delete:
+    post:
+      tags: [uploads]
+      security:
+        - bearerAuth: []
+      summary: Delete profile photos by storage path or URL
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PhotoUploadDeleteRequest"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkResponse"
   /headlines:
     get:
       tags: [metadata]
@@ -708,6 +764,59 @@ components:
               type: number
             lng:
               type: number
+      additionalProperties: false
+    UserPhotosUpdate:
+      type: object
+      properties:
+        photos:
+          type: array
+          items:
+            type: string
+      required: [photos]
+      additionalProperties: false
+    PhotoUploadSignRequest:
+      type: object
+      properties:
+        files:
+          type: array
+          items:
+            type: object
+            properties:
+              filename:
+                type: string
+              contentType:
+                type: string
+            required: [filename, contentType]
+      required: [files]
+      additionalProperties: false
+    PhotoUploadSignResponse:
+      type: object
+      properties:
+        uploads:
+          type: array
+          items:
+            type: object
+            properties:
+              path:
+                type: string
+              uploadUrl:
+                type: string
+              publicUrl:
+                type: string
+            required: [path, uploadUrl, publicUrl]
+      required: [uploads]
+      additionalProperties: false
+    PhotoUploadDeleteRequest:
+      type: object
+      properties:
+        paths:
+          type: array
+          items:
+            type: string
+        urls:
+          type: array
+          items:
+            type: string
       additionalProperties: false
     UserPhotoItem:
       type: object

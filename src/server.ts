@@ -11,6 +11,8 @@ import { notificationRoutes } from "./routes/notifications";
 import { apiVersion } from "./config/apiVersion";
 import { openapiRoutes } from "./routes/openapi";
 import { headlineRoutes } from "./routes/headlines";
+import { uploadRoutes } from "./routes/uploads";
+import { ZodError } from "zod";
 
 export function buildServer() {
   const app = Fastify({ logger: true });
@@ -44,6 +46,18 @@ export function buildServer() {
   app.register(notificationRoutes);
   app.register(openapiRoutes);
   app.register(headlineRoutes);
+  app.register(uploadRoutes);
+
+  app.setErrorHandler((error, _request, reply) => {
+    if (error instanceof ZodError) {
+      reply.status(400).send({
+        error: "validation_error",
+        details: error.errors
+      });
+      return;
+    }
+    reply.send(error);
+  });
 
   return app;
 }

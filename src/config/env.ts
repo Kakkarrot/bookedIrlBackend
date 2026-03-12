@@ -10,7 +10,10 @@ const envSchema = z.object({
   FIREBASE_PROJECT_ID: z.string().min(1, "FIREBASE_PROJECT_ID is required"),
   FIREBASE_CLIENT_EMAIL: z.string().min(1, "FIREBASE_CLIENT_EMAIL is required"),
   FIREBASE_PRIVATE_KEY: z.string().optional(),
-  FIREBASE_PRIVATE_KEY_BASE64: z.string().optional()
+  FIREBASE_PRIVATE_KEY_BASE64: z.string().optional(),
+  SUPABASE_URL: z.string().url("SUPABASE_URL is required"),
+  SUPABASE_SERVICE_ROLE_KEY: z.string().min(1, "SUPABASE_SERVICE_ROLE_KEY is required"),
+  SUPABASE_STORAGE_BUCKET: z.string().min(1, "SUPABASE_STORAGE_BUCKET is required")
 });
 
 export const env = envSchema

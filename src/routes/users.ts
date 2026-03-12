@@ -32,6 +32,10 @@ const updateUserSchema = z.object({
     .optional()
 });
 
+const updatePhotosSchema = z.object({
+  photos: z.array(z.string().url()).max(6)
+});
+
 const nearbySchema = z.object({
   lat: z.coerce.number().min(-90).max(90),
   lng: z.coerce.number().min(-180).max(180),
@@ -55,6 +59,20 @@ const qualifiedNearbySchema = z.object({
 });
 
 export async function userRoutes(app: FastifyInstance) {
+  async function replaceUserPhotos(
+    client: import("pg").PoolClient,
+    userId: string,
+    photos: string[]
+  ) {
+    await client.query("DELETE FROM user_photos WHERE user_id = $1", [userId]);
+    for (const [index, url] of photos.entries()) {
+      await client.query(
+        "INSERT INTO user_photos (id, user_id, url, sort_order) VALUES ($1, $2, $3, $4)",
+        [randomUUID(), userId, url, index]
+      );
+    }
+  }
+
   app.get("/users/me", async (request, reply) => {
     const auth = await requireUser(request, reply);
     if (!auth) return;
@@ -216,13 +234,7 @@ export async function userRoutes(app: FastifyInstance) {
       }
 
       if (payload.photos) {
-        await client.query("DELETE FROM user_photos WHERE user_id = $1", [auth.userId]);
-        for (const [index, url] of payload.photos.entries()) {
-          await client.query(
-            "INSERT INTO user_photos (id, user_id, url, sort_order) VALUES ($1, $2, $3, $4)",
-            [randomUUID(), auth.userId, url, index]
-          );
-        }
+        await replaceUserPhotos(client, auth.userId, payload.photos);
       }
 
       if (payload.socialLinks) {
@@ -242,6 +254,26 @@ export async function userRoutes(app: FastifyInstance) {
         );
       }
 
+      await client.query("COMMIT");
+      reply.send({ ok: true });
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
+  });
+
+  app.post("/users/photos", async (request, reply) => {
+    const auth = await requireUser(request, reply);
+    if (!auth) return;
+
+    const payload = updatePhotosSchema.parse(request.body);
+    const client = await pool.connect();
+
+    try {
+      await client.query("BEGIN");
+      await replaceUserPhotos(client, auth.userId, payload.photos);
       await client.query("COMMIT");
       reply.send({ ok: true });
     } catch (error) {

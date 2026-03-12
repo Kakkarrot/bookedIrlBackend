@@ -10,3 +10,6 @@
 - All API requests must send `X-API-Version` matching `openapi.yaml` `info.version`; mismatches return `426`.
 - Build: `npm run build` runs `tsc`.
 - Metadata: `GET /headlines` returns the allowed headline options list.
+- User photos update: `POST /users/photos` replaces the authenticated user's photo URLs (max 6).
+- Photo uploads: `POST /uploads/photos/sign` returns signed upload URLs and public URLs for direct-to-storage uploads.
+- Photo deletions: `POST /uploads/photos/delete` deletes stored photos by path or public URL.
