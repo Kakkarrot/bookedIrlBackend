@@ -713,6 +713,13 @@ components:
         bio:
           type: string
           nullable: true
+        birthday:
+          type: string
+          format: date
+          nullable: true
+        onboarding_step:
+          type: string
+          nullable: true
         intent_looking:
           type: boolean
         intent_offering:
@@ -743,6 +750,13 @@ components:
           type: string
           nullable: true
         bio:
+          type: string
+          nullable: true
+        birthday:
+          type: string
+          format: date
+          nullable: true
+        onboardingStep:
           type: string
           nullable: true
         intentLooking:

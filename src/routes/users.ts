@@ -20,6 +20,8 @@ const updateUserSchema = z.object({
     .transform((value) => value.trim())
     .optional(),
   bio: z.string().max(500).optional(),
+  birthday: z.string().regex(/^\\d{4}-\\d{2}-\\d{2}$/).optional(),
+  onboardingStep: z.string().max(32).optional(),
   intentLooking: z.boolean().optional(),
   intentOffering: z.boolean().optional(),
   photos: z.array(z.string().url()).max(6).optional(),
@@ -78,7 +80,7 @@ export async function userRoutes(app: FastifyInstance) {
     if (!auth) return;
 
     const userResult = await pool.query(
-      "SELECT id, display_name, username, email, phone, headline, bio, intent_looking, intent_offering FROM users WHERE id = $1",
+      "SELECT id, display_name, username, email, phone, headline, bio, birthday, onboarding_step, intent_looking, intent_offering FROM users WHERE id = $1",
       [auth.userId]
     );
 
@@ -117,7 +119,7 @@ export async function userRoutes(app: FastifyInstance) {
     const params = userIdParamsSchema.parse(request.params);
 
     const userResult = await pool.query(
-        "SELECT id, display_name, username, email, phone, headline, bio, intent_looking, intent_offering FROM users WHERE id = $1",
+        "SELECT id, display_name, username, email, phone, headline, bio, birthday, onboarding_step, intent_looking, intent_offering FROM users WHERE id = $1",
       [params.userId]
     );
 
@@ -206,15 +208,19 @@ export async function userRoutes(app: FastifyInstance) {
              username = COALESCE(LOWER($2), username),
              headline = COALESCE($3, headline),
              bio = COALESCE($4, bio),
-             intent_looking = COALESCE($5, intent_looking),
-             intent_offering = COALESCE($6, intent_offering),
+             birthday = COALESCE($5, birthday),
+             onboarding_step = COALESCE($6, onboarding_step),
+             intent_looking = COALESCE($7, intent_looking),
+             intent_offering = COALESCE($8, intent_offering),
              updated_at = now()
-         WHERE id = $7`,
+         WHERE id = $9`,
         [
           payload.displayName ?? null,
           payload.username ?? null,
           payload.headline ?? null,
           payload.bio ?? null,
+          payload.birthday ?? null,
+          payload.onboardingStep ?? null,
           payload.intentLooking ?? null,
           payload.intentOffering ?? null,
           auth.userId
