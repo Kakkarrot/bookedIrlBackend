@@ -6,7 +6,6 @@ CREATE TABLE IF NOT EXISTS users (
   display_name text,
   username text,
   email text UNIQUE,
-  phone text UNIQUE,
   headline text,
   bio text,
   intent_looking boolean NOT NULL DEFAULT false,
@@ -23,7 +22,6 @@ CREATE TABLE IF NOT EXISTS auth_identities (
   provider text NOT NULL,
   provider_user_id text NOT NULL,
   email text,
-  phone text,
   created_at timestamptz NOT NULL DEFAULT now(),
   UNIQUE(provider, provider_user_id)
 );

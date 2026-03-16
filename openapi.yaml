@@ -704,9 +704,6 @@ components:
         email:
           type: string
           nullable: true
-        phone:
-          type: string
-          nullable: true
         headline:
           type: string
           nullable: true

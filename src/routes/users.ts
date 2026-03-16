@@ -4,6 +4,19 @@ import { randomUUID } from "crypto";
 import { pool } from "../db/pool";
 import { requireUser } from "../lib/auth";
 
+const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+
+function isAtLeast18(birthday: string) {
+  const [year, month, day] = birthday.split("-").map(Number);
+  if (!year || !month || !day) return false;
+  const birthUTC = Date.UTC(year, month - 1, day);
+  if (Number.isNaN(birthUTC)) return false;
+  const now = new Date();
+  const nowUTC = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+  const ageDate = new Date(nowUTC - birthUTC);
+  return ageDate.getUTCFullYear() - 1970 >= 18;
+}
+
 const updateUserSchema = z.object({
   displayName: z.string().min(2).max(64).optional(),
   username: z
@@ -20,7 +33,11 @@ const updateUserSchema = z.object({
     .transform((value) => value.trim())
     .optional(),
   bio: z.string().max(500).optional(),
-  birthday: z.string().regex(/^\\d{4}-\\d{2}-\\d{2}$/).optional(),
+  birthday: z
+    .string()
+    .regex(dateRegex)
+    .refine(isAtLeast18, { message: "must_be_18_or_older" })
+    .optional(),
   onboardingStep: z.string().max(32).optional(),
   intentLooking: z.boolean().optional(),
   intentOffering: z.boolean().optional(),
@@ -80,7 +97,7 @@ export async function userRoutes(app: FastifyInstance) {
     if (!auth) return;
 
     const userResult = await pool.query(
-      "SELECT id, display_name, username, email, phone, headline, bio, birthday, onboarding_step, intent_looking, intent_offering FROM users WHERE id = $1",
+      "SELECT id, display_name, username, email, headline, bio, birthday, onboarding_step, intent_looking, intent_offering FROM users WHERE id = $1",
       [auth.userId]
     );
 
@@ -119,7 +136,7 @@ export async function userRoutes(app: FastifyInstance) {
     const params = userIdParamsSchema.parse(request.params);
 
     const userResult = await pool.query(
-        "SELECT id, display_name, username, email, phone, headline, bio, birthday, onboarding_step, intent_looking, intent_offering FROM users WHERE id = $1",
+        "SELECT id, display_name, username, email, headline, bio, birthday, onboarding_step, intent_looking, intent_offering FROM users WHERE id = $1",
       [params.userId]
     );
 
@@ -182,7 +199,7 @@ export async function userRoutes(app: FastifyInstance) {
       return;
     }
 
-    const { email: _email, phone: _phone, ...publicUser } = baseUser;
+    const { email: _email, ...publicUser } = baseUser;
     reply.send({
       ...publicUser,
       photos: photos.rows,
