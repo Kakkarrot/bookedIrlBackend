@@ -712,7 +712,6 @@ components:
           nullable: true
         birthday:
           type: string
-          format: date
           nullable: true
         onboarding_step:
           type: string
@@ -751,7 +750,6 @@ components:
           nullable: true
         birthday:
           type: string
-          format: date
           nullable: true
         onboardingStep:
           type: string
@@ -900,6 +898,8 @@ components:
           type: integer
         durationMinutes:
           type: integer
+        isActive:
+          type: boolean
       required: [title, priceDollars, durationMinutes]
     ServiceUpdate:
       type: object

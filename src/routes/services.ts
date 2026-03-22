@@ -8,7 +8,8 @@ const createServiceSchema = z.object({
   title: z.string().min(2).max(80),
   description: z.string().max(500).optional(),
   priceDollars: z.number().int().min(1).max(9999),
-  durationMinutes: z.number().int().min(15).max(9999)
+  durationMinutes: z.number().int().min(15).max(9999),
+  isActive: z.boolean().optional()
 });
 
 const updateServiceSchema = z.object({
@@ -111,14 +112,15 @@ export async function serviceRoutes(app: FastifyInstance) {
     const serviceId = randomUUID();
 
     await pool.query(
-      "INSERT INTO services (id, user_id, title, description, price_dollars, duration_minutes) VALUES ($1, $2, $3, $4, $5, $6)",
+      "INSERT INTO services (id, user_id, title, description, price_dollars, duration_minutes, is_active) VALUES ($1, $2, $3, $4, $5, $6, $7)",
       [
         serviceId,
         auth.userId,
         payload.title,
         payload.description ?? null,
         payload.priceDollars,
-        payload.durationMinutes
+        payload.durationMinutes,
+        payload.isActive ?? true
       ]
     );
 
@@ -193,14 +195,15 @@ export async function serviceRoutes(app: FastifyInstance) {
     const serviceId = randomUUID();
 
     await pool.query(
-      "INSERT INTO services (id, user_id, title, description, price_dollars, duration_minutes) VALUES ($1, $2, $3, $4, $5, $6)",
+      "INSERT INTO services (id, user_id, title, description, price_dollars, duration_minutes, is_active) VALUES ($1, $2, $3, $4, $5, $6, $7)",
       [
         serviceId,
         params.userId,
         payload.title,
         payload.description ?? null,
         payload.priceDollars,
-        payload.durationMinutes
+        payload.durationMinutes,
+        payload.isActive ?? true
       ]
     );
 
