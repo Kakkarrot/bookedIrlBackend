@@ -7,15 +7,15 @@ import { requireUser } from "../lib/auth";
 const createServiceSchema = z.object({
   title: z.string().min(2).max(80),
   description: z.string().max(500).optional(),
-  priceDollars: z.number().int().min(0),
-  durationMinutes: z.number().int().min(15).max(24 * 60)
+  priceDollars: z.number().int().min(1).max(9999),
+  durationMinutes: z.number().int().min(15).max(9999)
 });
 
 const updateServiceSchema = z.object({
   title: z.string().min(2).max(80).optional(),
   description: z.string().max(500).optional(),
-  priceDollars: z.number().int().min(0).optional(),
-  durationMinutes: z.number().int().min(15).max(24 * 60).optional(),
+  priceDollars: z.number().int().min(1).max(9999).optional(),
+  durationMinutes: z.number().int().min(15).max(9999).optional(),
   isActive: z.boolean().optional()
 });
 
