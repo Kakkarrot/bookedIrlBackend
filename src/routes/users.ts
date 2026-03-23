@@ -75,7 +75,13 @@ const userIdParamsSchema = z.object({
 
 const qualifiedNearbySchema = z.object({
   limit: z.coerce.number().min(1).max(100).default(20),
-  offset: z.coerce.number().min(0).max(10000).default(0)
+  offset: z.coerce.number().min(0).max(10000).default(0),
+  query: z
+    .string()
+    .trim()
+    .min(1)
+    .max(100)
+    .optional()
 });
 
 export async function userRoutes(app: FastifyInstance) {
@@ -367,6 +373,7 @@ export async function userRoutes(app: FastifyInstance) {
     if (!auth) return;
 
     const query = qualifiedNearbySchema.parse(request.query);
+    const searchPattern = query.query ? `%${query.query}%` : null;
 
     const locationResult = await pool.query(
       "SELECT location FROM user_locations WHERE user_id = $1",
@@ -405,10 +412,27 @@ export async function userRoutes(app: FastifyInstance) {
             WHERE s.user_id = u.id
               AND s.is_active = true
           )
+          AND (
+            $4::text IS NULL
+            OR u.display_name ILIKE $4
+            OR COALESCE(u.username, '') ILIKE $4
+            OR COALESCE(u.headline, '') ILIKE $4
+            OR COALESCE(u.bio, '') ILIKE $4
+            OR EXISTS (
+              SELECT 1
+              FROM services s
+              WHERE s.user_id = u.id
+                AND s.is_active = true
+                AND (
+                  s.title ILIKE $4
+                  OR COALESCE(s.description, '') ILIKE $4
+                )
+            )
+          )
         ORDER BY distance_meters ASC NULLS LAST, u.created_at DESC, u.id
         LIMIT $2 OFFSET $3
       `,
-      [auth.userId, query.limit, query.offset]
+      [auth.userId, query.limit, query.offset, searchPattern]
     );
 
     const userIds = (nearbyResult.rows as NearbyUserRow[]).map((row) => row.id);

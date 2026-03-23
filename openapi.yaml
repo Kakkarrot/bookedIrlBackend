@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: BookedIRL Backend API
-  version: 0.1.5
+  version: 0.1.6
 servers:
   - url: http://localhost:4000
   - url: https://bookedirlbackend.onrender.com
@@ -129,6 +129,7 @@ paths:
       parameters:
         - $ref: "#/components/parameters/Limit"
         - $ref: "#/components/parameters/Offset"
+        - $ref: "#/components/parameters/SearchQuery"
       responses:
         "200":
           description: OK
@@ -605,6 +606,14 @@ components:
       schema:
         type: integer
         default: 0
+    SearchQuery:
+      name: query
+      in: query
+      required: false
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 100
   schemas:
     AuthSession:
       type: object
