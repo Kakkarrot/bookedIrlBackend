@@ -128,6 +128,7 @@ paths:
       summary: Nearby users with photos and active services
       parameters:
         - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Offset"
       responses:
         "200":
           description: OK

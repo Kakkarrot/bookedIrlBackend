@@ -74,7 +74,8 @@ const userIdParamsSchema = z.object({
 });
 
 const qualifiedNearbySchema = z.object({
-  limit: z.coerce.number().min(1).max(100).default(20)
+  limit: z.coerce.number().min(1).max(100).default(20),
+  offset: z.coerce.number().min(0).max(10000).default(0)
 });
 
 export async function userRoutes(app: FastifyInstance) {
@@ -402,9 +403,9 @@ export async function userRoutes(app: FastifyInstance) {
               AND s.is_active = true
           )
         ORDER BY distance_meters ASC
-        LIMIT $2
+        LIMIT $2 OFFSET $3
       `,
-      [auth.userId, query.limit]
+      [auth.userId, query.limit, query.offset]
     );
 
     const userIds = (nearbyResult.rows as NearbyUserRow[]).map((row) => row.id);
