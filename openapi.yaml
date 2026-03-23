@@ -802,11 +802,12 @@ components:
           nullable: true
         distance_meters:
           type: number
+          nullable: true
         photos:
           type: array
           items:
             $ref: "#/components/schemas/UserPhotoItem"
-      required: [id, distance_meters, photos]
+      required: [id, photos]
     Service:
       type: object
       properties:

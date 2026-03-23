@@ -390,10 +390,13 @@ export async function userRoutes(app: FastifyInstance) {
                u.username,
                u.headline,
                u.bio,
-               ST_Distance(ul.location, me.location) AS distance_meters
+               CASE
+                 WHEN ul.location IS NOT NULL THEN ST_Distance(ul.location, me.location)
+                 ELSE NULL
+               END AS distance_meters
         FROM me
-        JOIN user_locations ul ON true
-        JOIN users u ON u.id = ul.user_id
+        JOIN users u ON u.id <> $1
+        LEFT JOIN user_locations ul ON ul.user_id = u.id
         WHERE u.id <> $1
           AND EXISTS (SELECT 1 FROM user_photos up WHERE up.user_id = u.id)
           AND EXISTS (
@@ -402,7 +405,7 @@ export async function userRoutes(app: FastifyInstance) {
             WHERE s.user_id = u.id
               AND s.is_active = true
           )
-        ORDER BY distance_meters ASC
+        ORDER BY distance_meters ASC NULLS LAST, u.created_at DESC, u.id
         LIMIT $2 OFFSET $3
       `,
       [auth.userId, query.limit, query.offset]

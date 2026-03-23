@@ -11,7 +11,7 @@
 - All API requests must send `X-API-Version` matching `openapi.yaml` `info.version`; mismatches return `426`.
 - Build: `npm run build` runs `tsc`.
 - Metadata: `GET /headlines` returns the allowed headline options list.
-- Discover feed: `GET /users/nearby-qualified` is the qualified discover source and supports `limit` + `offset` pagination.
+- Discover feed: `GET /users/nearby-qualified` is the qualified discover source and supports `limit` + `offset` pagination; candidates need photos + an active service, while missing candidate locations are allowed and sorted last.
 - Service create supports optional `isActive`; if omitted, backend defaults it to `true`.
 - Bookings use `requestedDate` + `timeOfDay` and are pairwise unique while status is `requested` or `accepted`.
 - The iOS tab previously called notifications is actually a bookings inbox; backend design should model that surface as bookings, not a generic notifications feed.
