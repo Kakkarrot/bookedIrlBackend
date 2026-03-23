@@ -978,7 +978,6 @@ components:
         sort_order:
           type: integer
       required: [user_id, url]
-      required: [id, service_id, service_title, service_price_dollars, service_duration_minutes, status, requested_date, time_of_day]
     UserPreview:
       type: object
       properties:
