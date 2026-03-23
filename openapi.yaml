@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: BookedIRL Backend API
-  version: 0.1.3
+  version: 0.1.5
 servers:
   - url: http://localhost:4000
   - url: https://bookedirlbackend.onrender.com
@@ -11,7 +11,6 @@ tags:
   - name: services
   - name: bookings
   - name: chats
-  - name: notifications
   - name: metadata
 paths:
   /health:
@@ -364,13 +363,8 @@ paths:
       tags: [bookings]
       security:
         - bearerAuth: []
-      summary: List bookings
+      summary: List bookings for current user services
       parameters:
-        - name: role
-          in: query
-          schema:
-            type: string
-            enum: [buyer, seller]
         - $ref: "#/components/parameters/Limit"
         - $ref: "#/components/parameters/Offset"
       responses:
@@ -386,7 +380,7 @@ paths:
       tags: [bookings]
       security:
         - bearerAuth: []
-      summary: Create booking for service
+      summary: Create booking request for service
       requestBody:
         required: true
         content:
@@ -405,7 +399,7 @@ paths:
       tags: [bookings]
       security:
         - bearerAuth: []
-      summary: Update booking status or schedule
+      summary: Update booking status
       parameters:
         - $ref: "#/components/parameters/BookingId"
       requestBody:
@@ -421,25 +415,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/OkResponse"
-  /users/{userId}/bookings:
-    get:
-      tags: [bookings]
-      security:
-        - bearerAuth: []
-      summary: List bookings for user services
-      parameters:
-        - $ref: "#/components/parameters/UserId"
-        - $ref: "#/components/parameters/Limit"
-        - $ref: "#/components/parameters/Offset"
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/Booking"
   /chats:
     get:
       tags: [chats]
@@ -458,24 +433,6 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/ChatSummary"
-    post:
-      tags: [chats]
-      security:
-        - bearerAuth: []
-      summary: Create chat for service
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/ChatCreate"
-      responses:
-        "201":
-          description: Created
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/IdResponse"
   /users/{userId}/chats:
     get:
       tags: [chats]
@@ -574,7 +531,7 @@ paths:
       tags: [chats]
       security:
         - bearerAuth: []
-      summary: Create chat for booking
+      summary: Get or create chat for accepted booking
       parameters:
         - $ref: "#/components/parameters/BookingId"
       responses:
@@ -584,24 +541,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/IdResponse"
-  /notifications:
-    get:
-      tags: [notifications]
-      security:
-        - bearerAuth: []
-      summary: List notifications
-      parameters:
-        - $ref: "#/components/parameters/Limit"
-        - $ref: "#/components/parameters/Offset"
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/Notification"
 components:
   securitySchemes:
     bearerAuth:
@@ -927,30 +866,52 @@ components:
           type: string
         service_id:
           type: string
+        service_title:
+          type: string
+        service_price_dollars:
+          type: integer
+        service_duration_minutes:
+          type: integer
         status:
           type: string
-        scheduled_at:
+          enum: [requested, accepted, declined]
+        requested_date:
+          type: string
+        time_of_day:
+          type: string
+          enum: [morning, afternoon, evening, night]
+        note:
+          type: string
+          nullable: true
+        created_at:
           type: string
           format: date-time
-      required: [id, buyer_id, seller_id, service_id, status, scheduled_at]
+        updated_at:
+          type: string
+          format: date-time
+        buyer:
+          $ref: "#/components/schemas/UserPreview"
+      required: [id, buyer_id, seller_id, service_id, service_title, service_price_dollars, service_duration_minutes, status, requested_date, time_of_day, created_at, updated_at, buyer]
     BookingCreate:
       type: object
       properties:
         serviceId:
           type: string
-        scheduledAt:
+        requestedDate:
           type: string
-          format: date-time
-      required: [serviceId, scheduledAt]
+        timeOfDay:
+          type: string
+          enum: [morning, afternoon, evening, night]
+        note:
+          type: string
+          nullable: true
+      required: [serviceId, requestedDate, timeOfDay]
     BookingUpdate:
       type: object
       properties:
         status:
           type: string
-          enum: [accepted, declined, canceled, completed]
-        scheduledAt:
-          type: string
-          format: date-time
+          enum: [accepted, declined]
       additionalProperties: false
     ChatSummary:
       type: object
@@ -982,12 +943,6 @@ components:
         unread_count:
           type: integer
       required: [id, buyer_id, seller_id, service_id, unread_count]
-    ChatCreate:
-      type: object
-      properties:
-        serviceId:
-          type: string
-      required: [serviceId]
     ChatMessage:
       type: object
       properties:
@@ -1023,20 +978,19 @@ components:
         sort_order:
           type: integer
       required: [user_id, url]
-    Notification:
+      required: [id, service_id, service_title, service_price_dollars, service_duration_minutes, status, requested_date, time_of_day]
+    UserPreview:
       type: object
       properties:
         id:
           type: string
-        type:
+        display_name:
           type: string
-        payload:
-          type: object
-        read_at:
-          type: string
-          format: date-time
           nullable: true
-        created_at:
+        username:
           type: string
-          format: date-time
-      required: [id, type, payload, created_at]
+          nullable: true
+        photo_url:
+          type: string
+          nullable: true
+      required: [id]

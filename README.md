@@ -38,9 +38,14 @@ The OpenAPI spec is served at `GET /openapi.yaml` for client generation.
 - Update service: `PATCH /services/:serviceId` updates a service (owner only).
 - Delete service: `DELETE /services/:serviceId` deletes a service (owner only).
 - Headline options: `GET /headlines` returns the allowed headline list for clients.
-- Create booking for service: `POST /bookings` creates a booking for a service as the authenticated user.
-- Update booking: `PATCH /bookings/:bookingId` updates booking status or scheduled time (buyer/seller only; accept/decline is seller-only).
-- List bookings for user’s services: `GET /users/:userId/bookings` returns bookings requested by other users for services owned by the authenticated user (supports `limit`/`offset`).
+- Create booking request: `POST /bookings` creates a booking request using `requestedDate` + `timeOfDay` (not an exact timestamp).
+- Booking requests snapshot the service title, price, and duration at request time so the bookings inbox and history remain stable after service edits.
+- Booking anti-spam rule: only one non-declined booking may exist between a pair of users at a time; duplicates return `409 booking_already_exists`.
+- Booking validation: users cannot book their own service or an inactive service.
+- Update booking: `PATCH /bookings/:bookingId` only supports seller-side `accepted` / `declined`.
+- Accepting a booking creates the chat; `POST /bookings/:bookingId/chat` only works for accepted bookings.
+- Bookings are the source of truth for the iOS bookings inbox (the tab previously named notifications).
+- List bookings inbox: `GET /bookings` returns booking summaries for services owned by the authenticated user, including minimal buyer profile info for rendering (supports `limit`/`offset`).
 - List chats for user: `GET /users/:userId/chats` returns all chats where the authenticated user is a buyer or seller (supports `limit`/`offset`).
 - Create chat from booking: `POST /bookings/:bookingId/chat` creates a chat for the booking (buyer/seller only).
 - List chat messages: `GET /chats/:id/messages` returns messages for a chat the authenticated user participates in.
@@ -48,7 +53,6 @@ The OpenAPI spec is served at `GET /openapi.yaml` for client generation.
 - Unread counts: `GET /chats` and `GET /users/:userId/chats` include `unread_count`.
 - List services for users: `GET /services?userIds=uuid,uuid` returns active services for users who have photos and active services.
 - User photos: `GET /users/photos?userIds=uuid,uuid` returns photos only for users who have photos and active services.
-- Notifications: `GET /notifications` returns notifications for the authenticated user (supports `limit`/`offset`).
 - Realtime: planned Supabase Realtime integration for live chat.
 
 ## Getting started

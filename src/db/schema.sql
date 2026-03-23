@@ -64,9 +64,16 @@ CREATE TABLE IF NOT EXISTS bookings (
   id uuid PRIMARY KEY,
   buyer_id uuid NOT NULL REFERENCES users(id),
   seller_id uuid NOT NULL REFERENCES users(id),
+  participant_a uuid NOT NULL REFERENCES users(id),
+  participant_b uuid NOT NULL REFERENCES users(id),
   service_id uuid NOT NULL REFERENCES services(id),
-  status text NOT NULL,
-  scheduled_at timestamptz NOT NULL,
+  service_title text NOT NULL,
+  service_price_dollars int NOT NULL,
+  service_duration_minutes int NOT NULL,
+  status text NOT NULL CHECK (status IN ('requested', 'accepted', 'declined')),
+  requested_date date NOT NULL,
+  time_of_day text NOT NULL CHECK (time_of_day IN ('morning', 'afternoon', 'evening', 'night')),
+  note text,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
@@ -97,23 +104,17 @@ CREATE TABLE IF NOT EXISTS chat_reads (
   PRIMARY KEY (chat_id, user_id)
 );
 
-CREATE TABLE IF NOT EXISTS notifications (
-  id uuid PRIMARY KEY,
-  user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  type text NOT NULL,
-  payload jsonb NOT NULL DEFAULT '{}',
-  read_at timestamptz,
-  created_at timestamptz NOT NULL DEFAULT now()
-);
-
 CREATE INDEX IF NOT EXISTS services_user_id_idx ON services(user_id);
 CREATE INDEX IF NOT EXISTS user_photos_user_id_idx ON user_photos(user_id);
 CREATE INDEX IF NOT EXISTS user_social_links_user_id_idx ON user_social_links(user_id);
 CREATE INDEX IF NOT EXISTS bookings_buyer_id_idx ON bookings(buyer_id);
 CREATE INDEX IF NOT EXISTS bookings_seller_id_idx ON bookings(seller_id);
+CREATE INDEX IF NOT EXISTS bookings_participant_a_idx ON bookings(participant_a);
+CREATE INDEX IF NOT EXISTS bookings_participant_b_idx ON bookings(participant_b);
+CREATE UNIQUE INDEX IF NOT EXISTS bookings_open_pair_idx ON bookings(participant_a, participant_b) WHERE status IN ('requested', 'accepted');
 CREATE INDEX IF NOT EXISTS chats_buyer_id_idx ON chats(buyer_id);
 CREATE INDEX IF NOT EXISTS chats_seller_id_idx ON chats(seller_id);
+CREATE UNIQUE INDEX IF NOT EXISTS chats_participants_service_idx ON chats(buyer_id, seller_id, service_id);
 CREATE INDEX IF NOT EXISTS messages_chat_id_idx ON messages(chat_id);
 CREATE INDEX IF NOT EXISTS chat_reads_user_id_idx ON chat_reads(user_id);
-CREATE INDEX IF NOT EXISTS notifications_user_id_idx ON notifications(user_id);
 CREATE INDEX IF NOT EXISTS user_locations_gix ON user_locations USING GIST(location);

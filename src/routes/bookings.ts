@@ -4,22 +4,17 @@ import { randomUUID } from "crypto";
 import { pool } from "../db/pool";
 import { requireUser } from "../lib/auth";
 
+const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+const timeOfDayValues = ["morning", "afternoon", "evening", "night"] as const;
+
 const createBookingSchema = z.object({
   serviceId: z.string().uuid(),
-  scheduledAt: z.string().datetime()
+  requestedDate: z.string().regex(dateRegex),
+  timeOfDay: z.enum(timeOfDayValues),
+  note: z.string().trim().max(500).optional()
 });
 
 const listBookingsSchema = z.object({
-  role: z.enum(["buyer", "seller"]).optional(),
-  limit: z.coerce.number().min(1).max(100).default(50),
-  offset: z.coerce.number().min(0).max(10000).default(0)
-});
-
-const userIdParamsSchema = z.object({
-  userId: z.string().uuid()
-});
-
-const listUserBookingsSchema = z.object({
   limit: z.coerce.number().min(1).max(100).default(50),
   offset: z.coerce.number().min(0).max(10000).default(0)
 });
@@ -29,44 +24,97 @@ const bookingIdParamsSchema = z.object({
 });
 
 const updateBookingSchema = z.object({
-  status: z.enum(["accepted", "declined", "canceled", "completed"]).optional(),
-  scheduledAt: z.string().datetime().optional()
+  status: z.enum(["accepted", "declined"]).optional()
 });
 
 const allowedStatusTransitions: Record<string, Set<string>> = {
-  requested: new Set(["accepted", "declined", "canceled"]),
-  accepted: new Set(["completed", "canceled"]),
-  declined: new Set([]),
-  canceled: new Set([]),
-  completed: new Set([])
+  requested: new Set(["accepted", "declined"]),
+  accepted: new Set([]),
+  declined: new Set([])
 };
 
+function canonicalPair(userA: string, userB: string) {
+  return userA <= userB
+    ? { participantA: userA, participantB: userB }
+    : { participantA: userB, participantB: userA };
+}
+
 function ensureStatusUpdateAllowed(
-  booking: { buyer_id: string; seller_id: string; status: string },
+  booking: { seller_id: string; status: string },
   actorId: string,
   nextStatus: string
 ) {
-  const isSeller = booking.seller_id === actorId;
-  const isBuyer = booking.buyer_id === actorId;
-  const currentStatus = booking.status;
-
-  if (!allowedStatusTransitions[currentStatus]?.has(nextStatus)) {
+  if (!allowedStatusTransitions[booking.status]?.has(nextStatus)) {
     return { ok: false, code: 400, error: "invalid_status_transition" as const };
   }
 
-  if (nextStatus === "accepted" || nextStatus === "declined" || nextStatus === "completed") {
-    if (!isSeller) {
-      return { ok: false, code: 403, error: "forbidden" as const };
-    }
-  }
-
-  if (nextStatus === "canceled") {
-    if (!isBuyer && !isSeller) {
-      return { ok: false, code: 403, error: "forbidden" as const };
-    }
+  if (booking.seller_id !== actorId) {
+    return { ok: false, code: 403, error: "forbidden" as const };
   }
 
   return { ok: true as const };
+}
+
+const sellerInboxSelect = `
+  SELECT b.id,
+         b.buyer_id,
+         b.seller_id,
+         b.service_id,
+         b.service_title,
+         b.service_price_dollars,
+         b.service_duration_minutes,
+         b.status,
+         b.requested_date::text AS requested_date,
+         b.time_of_day,
+         b.note,
+         b.created_at,
+         b.updated_at,
+         buyer.display_name AS buyer_display_name,
+         buyer.username AS buyer_username,
+         buyer_photo.url AS buyer_photo_url
+  FROM bookings b
+  JOIN users buyer ON buyer.id = b.buyer_id
+  LEFT JOIN LATERAL (
+    SELECT url
+    FROM user_photos
+    WHERE user_id = b.buyer_id
+    ORDER BY sort_order
+    LIMIT 1
+  ) buyer_photo ON true
+`;
+
+async function listSellerInboxBookings(userId: string, limit: number, offset: number) {
+  return pool.query(
+    `${sellerInboxSelect}
+     WHERE b.seller_id = $1
+     ORDER BY b.created_at DESC
+     LIMIT $2 OFFSET $3`,
+    [userId, limit, offset]
+  );
+}
+
+function toBookingResponse(row: Record<string, unknown>) {
+  return {
+    id: row.id,
+    buyer_id: row.buyer_id,
+    seller_id: row.seller_id,
+    service_id: row.service_id,
+    service_title: row.service_title,
+    service_price_dollars: row.service_price_dollars,
+    service_duration_minutes: row.service_duration_minutes,
+    status: row.status,
+    requested_date: row.requested_date,
+    time_of_day: row.time_of_day,
+    note: row.note,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+    buyer: {
+      id: row.buyer_id,
+      display_name: row.buyer_display_name,
+      username: row.buyer_username,
+      photo_url: row.buyer_photo_url
+    }
+  };
 }
 
 export async function bookingRoutes(app: FastifyInstance) {
@@ -75,16 +123,9 @@ export async function bookingRoutes(app: FastifyInstance) {
     if (!auth) return;
 
     const query = listBookingsSchema.parse(request.query);
-    const role = query.role ?? "buyer";
+    const result = await listSellerInboxBookings(auth.userId, query.limit, query.offset);
 
-    const result = await pool.query(
-      role === "seller"
-        ? "SELECT * FROM bookings WHERE seller_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3"
-        : "SELECT * FROM bookings WHERE buyer_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3",
-      [auth.userId, query.limit, query.offset]
-    );
-
-    reply.send(result.rows);
+    reply.send(result.rows.map(toBookingResponse));
   });
 
   app.post("/bookings", async (request, reply) => {
@@ -92,32 +133,98 @@ export async function bookingRoutes(app: FastifyInstance) {
     if (!auth) return;
 
     const payload = createBookingSchema.parse(request.body);
-    const serviceResult = await pool.query(
-      "SELECT user_id FROM services WHERE id = $1",
-      [payload.serviceId]
-    );
+    const client = await pool.connect();
 
-    if (!serviceResult.rowCount) {
-      reply.code(404).send({ error: "service_not_found" });
-      return;
+    try {
+      await client.query("BEGIN");
+
+      const serviceResult = await client.query(
+        "SELECT id, user_id, is_active, title, price_dollars, duration_minutes FROM services WHERE id = $1",
+        [payload.serviceId]
+      );
+
+      if (!serviceResult.rowCount) {
+        await client.query("ROLLBACK");
+        reply.code(404).send({ error: "service_not_found" });
+        return;
+      }
+
+      const service = serviceResult.rows[0] as {
+        user_id: string;
+        is_active: boolean;
+        title: string;
+        price_dollars: number;
+        duration_minutes: number;
+      };
+      if (!service.is_active) {
+        await client.query("ROLLBACK");
+        reply.code(400).send({ error: "service_not_bookable" });
+        return;
+      }
+
+      if (service.user_id === auth.userId) {
+        await client.query("ROLLBACK");
+        reply.code(400).send({ error: "cannot_book_own_service" });
+        return;
+      }
+
+      const { participantA, participantB } = canonicalPair(auth.userId, service.user_id);
+      const existingBooking = await client.query(
+        `
+        SELECT id
+        FROM bookings
+        WHERE participant_a = $1
+          AND participant_b = $2
+          AND status IN ('requested', 'accepted')
+        LIMIT 1
+        `,
+        [participantA, participantB]
+      );
+
+      if (existingBooking.rowCount) {
+        await client.query("ROLLBACK");
+        reply.code(409).send({ error: "booking_already_exists" });
+        return;
+      }
+
+      const bookingId = randomUUID();
+      await client.query(
+        `
+        INSERT INTO bookings (
+          id, buyer_id, seller_id, participant_a, participant_b, service_id,
+          service_title, service_price_dollars, service_duration_minutes,
+          status, requested_date, time_of_day, note
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'requested', $10, $11, $12)
+        `,
+        [
+          bookingId,
+          auth.userId,
+          service.user_id,
+          participantA,
+          participantB,
+          payload.serviceId,
+          service.title,
+          service.price_dollars,
+          service.duration_minutes,
+          payload.requestedDate,
+          payload.timeOfDay,
+          payload.note?.trim() || null
+        ]
+      );
+
+      await client.query("COMMIT");
+      reply.code(201).send({ id: bookingId });
+    } catch (error) {
+      await client.query("ROLLBACK");
+      if ((error as { code?: string }).code === "23505") {
+        reply.code(409).send({ error: "booking_already_exists" });
+        return;
+      }
+      throw error;
+    } finally {
+      client.release();
     }
-
-    const bookingId = randomUUID();
-    const sellerId = serviceResult.rows[0].user_id;
-
-    await pool.query(
-      "INSERT INTO bookings (id, buyer_id, seller_id, service_id, status, scheduled_at) VALUES ($1, $2, $3, $4, $5, $6)",
-      [
-        bookingId,
-        auth.userId,
-        sellerId,
-        payload.serviceId,
-        "requested",
-        payload.scheduledAt
-      ]
-    );
-
-    reply.code(201).send({ id: bookingId });
   });
 
   app.patch("/bookings/:bookingId", async (request, reply) => {
@@ -126,59 +233,77 @@ export async function bookingRoutes(app: FastifyInstance) {
 
     const params = bookingIdParamsSchema.parse(request.params);
     const payload = updateBookingSchema.parse(request.body);
+    const client = await pool.connect();
 
-    const bookingResult = await pool.query(
-      "SELECT buyer_id, seller_id, status FROM bookings WHERE id = $1",
-      [params.bookingId]
-    );
+    try {
+      await client.query("BEGIN");
 
-    if (!bookingResult.rowCount) {
-      reply.code(404).send({ error: "booking_not_found" });
-      return;
-    }
-
-    const booking = bookingResult.rows[0];
-    if (booking.buyer_id !== auth.userId && booking.seller_id !== auth.userId) {
-      reply.code(403).send({ error: "forbidden" });
-      return;
-    }
-
-    if (payload.status) {
-      const check = ensureStatusUpdateAllowed(
-        { buyer_id: booking.buyer_id, seller_id: booking.seller_id, status: booking.status },
-        auth.userId,
-        payload.status
+      const bookingResult = await client.query(
+        "SELECT buyer_id, seller_id, service_id, status FROM bookings WHERE id = $1",
+        [params.bookingId]
       );
-      if (!check.ok) {
-        reply.code(check.code).send({ error: check.error });
+
+      if (!bookingResult.rowCount) {
+        await client.query("ROLLBACK");
+        reply.code(404).send({ error: "booking_not_found" });
         return;
       }
+
+      const booking = bookingResult.rows[0] as {
+        buyer_id: string;
+        seller_id: string;
+        service_id: string;
+        status: string;
+      };
+
+      if (booking.buyer_id !== auth.userId && booking.seller_id !== auth.userId) {
+        await client.query("ROLLBACK");
+        reply.code(403).send({ error: "forbidden" });
+        return;
+      }
+
+      if (payload.status) {
+        const check = ensureStatusUpdateAllowed(
+          { seller_id: booking.seller_id, status: booking.status },
+          auth.userId,
+          payload.status
+        );
+        if (!check.ok) {
+          await client.query("ROLLBACK");
+          reply.code(check.code).send({ error: check.error });
+          return;
+        }
+      }
+
+      if (payload.status) {
+        await client.query(
+          "UPDATE bookings SET status = $1, updated_at = now() WHERE id = $2",
+          [payload.status, params.bookingId]
+        );
+
+        if (payload.status === "accepted") {
+          const { participantA, participantB } = canonicalPair(booking.buyer_id, booking.seller_id);
+          const existingChat = await client.query(
+            "SELECT id FROM chats WHERE participant_a = $1 AND participant_b = $2",
+            [participantA, participantB]
+          );
+
+          if (!existingChat.rowCount) {
+            await client.query(
+              "INSERT INTO chats (id, buyer_id, seller_id, participant_a, participant_b) VALUES ($1, $2, $3, $4, $5)",
+              [randomUUID(), booking.buyer_id, booking.seller_id, participantA, participantB]
+            );
+          }
+        }
+      }
+
+      await client.query("COMMIT");
+      reply.send({ ok: true });
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
     }
-
-    await pool.query(
-      "UPDATE bookings SET status = COALESCE($1, status), scheduled_at = COALESCE($2, scheduled_at), updated_at = now() WHERE id = $3",
-      [payload.status ?? null, payload.scheduledAt ?? null, params.bookingId]
-    );
-
-    reply.send({ ok: true });
-  });
-
-  app.get("/users/:userId/bookings", async (request, reply) => {
-    const auth = await requireUser(request, reply);
-    if (!auth) return;
-
-    const params = userIdParamsSchema.parse(request.params);
-    if (params.userId !== auth.userId) {
-      reply.code(403).send({ error: "forbidden" });
-      return;
-    }
-
-    const query = listUserBookingsSchema.parse(request.query);
-    const result = await pool.query(
-      "SELECT * FROM bookings WHERE seller_id = $1 AND buyer_id <> seller_id ORDER BY created_at DESC LIMIT $2 OFFSET $3",
-      [params.userId, query.limit, query.offset]
-    );
-
-    reply.send(result.rows);
   });
 }

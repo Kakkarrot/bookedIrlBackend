@@ -4,10 +4,6 @@ import { randomUUID } from "crypto";
 import { pool } from "../db/pool";
 import { requireUser } from "../lib/auth";
 
-const createChatSchema = z.object({
-  serviceId: z.string().uuid()
-});
-
 const listMessagesSchema = z.object({
   limit: z.coerce.number().min(1).max(100).default(50)
 });
@@ -81,41 +77,6 @@ export async function chatRoutes(app: FastifyInstance) {
     const result = await listChatsForUser(auth.userId, query.limit, query.offset);
 
     reply.send(result.rows);
-  });
-
-  app.post("/chats", async (request, reply) => {
-    const auth = await requireUser(request, reply);
-    if (!auth) return;
-
-    const payload = createChatSchema.parse(request.body);
-    const serviceResult = await pool.query(
-      "SELECT user_id FROM services WHERE id = $1",
-      [payload.serviceId]
-    );
-
-    if (!serviceResult.rowCount) {
-      reply.code(404).send({ error: "service_not_found" });
-      return;
-    }
-
-    const sellerId = serviceResult.rows[0].user_id as string;
-    const existing = await pool.query(
-      "SELECT id FROM chats WHERE buyer_id = $1 AND seller_id = $2 AND service_id = $3",
-      [auth.userId, sellerId, payload.serviceId]
-    );
-
-    if (existing.rowCount) {
-      reply.send({ id: existing.rows[0].id });
-      return;
-    }
-
-    const chatId = randomUUID();
-    await pool.query(
-      "INSERT INTO chats (id, buyer_id, seller_id, service_id) VALUES ($1, $2, $3, $4)",
-      [chatId, auth.userId, sellerId, payload.serviceId]
-    );
-
-    reply.code(201).send({ id: chatId });
   });
 
   app.get("/chats/:id/messages", async (request, reply) => {
@@ -246,7 +207,7 @@ export async function chatRoutes(app: FastifyInstance) {
     const params = bookingIdParamsSchema.parse(request.params);
 
     const bookingResult = await pool.query(
-      "SELECT buyer_id, seller_id, service_id FROM bookings WHERE id = $1",
+      "SELECT buyer_id, seller_id, service_id, status FROM bookings WHERE id = $1",
       [params.bookingId]
     );
 
@@ -258,6 +219,11 @@ export async function chatRoutes(app: FastifyInstance) {
     const booking = bookingResult.rows[0];
     if (booking.buyer_id !== auth.userId && booking.seller_id !== auth.userId) {
       reply.code(403).send({ error: "forbidden" });
+      return;
+    }
+
+    if (booking.status !== "accepted") {
+      reply.code(400).send({ error: "booking_not_accepted" });
       return;
     }
 

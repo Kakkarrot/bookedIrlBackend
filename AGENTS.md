@@ -1,5 +1,6 @@
 # AGENTS Reference
 
+- Treat this file as implementation context, not just a checklist: keep it updated with the backend tech stack, core product rules, and the specific marketplace behaviors that shape API/data design.
 - Operate as a senior engineer and UX-aware builder: clean architecture, clear contracts, and pragmatic defaults.
 - Backend stack: Fastify + TypeScript (CommonJS, Node.js >= 20), Firebase Admin for auth, Supabase Postgres via `pg`, Zod for validation. Deploy backend on Render.
 - Prefer Postgres + clear data access boundaries; keep auth verification centralized.
@@ -11,6 +12,12 @@
 - Build: `npm run build` runs `tsc`.
 - Metadata: `GET /headlines` returns the allowed headline options list.
 - Service create supports optional `isActive`; if omitted, backend defaults it to `true`.
+- Bookings use `requestedDate` + `timeOfDay` and are pairwise unique while status is `requested` or `accepted`.
+- The iOS tab previously called notifications is actually a bookings inbox; backend design should model that surface as bookings, not a generic notifications feed.
+- Bookings snapshot service title/price/duration at create time so inbox/history UI does not depend on live service rows.
+- `GET /bookings` is the single inbox read endpoint and is seller-only; do not reintroduce buyer-role list variants unless the product actually needs them.
+- Booking status is limited to `requested`, `accepted`, `declined`; only the seller may accept or decline.
+- Accepting a booking creates the chat; direct chat creation is no longer part of the contract.
 - User photos update: `POST /users/photos` replaces the authenticated user's photo URLs (max 6).
 - Photo uploads: `POST /uploads/photos/sign` returns signed upload URLs and public URLs for direct-to-storage uploads.
 - Photo deletions: `POST /uploads/photos/delete` deletes stored photos by path or public URL.
