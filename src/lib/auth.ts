@@ -16,6 +16,12 @@ export async function requireUser(
     const userId = await getOrCreateUserId(token);
     return { token, userId };
   } catch (error) {
+    request.log.warn(
+      {
+        error: error instanceof Error ? error.message : String(error)
+      },
+      "Authentication failed"
+    );
     reply.code(401).send({ error: "unauthorized" });
     return null;
   }
