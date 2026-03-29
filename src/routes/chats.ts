@@ -29,6 +29,28 @@ const bookingIdParamsSchema = z.object({
   bookingId: z.string().uuid()
 });
 
+type ChatParticipantRow = {
+  buyer_id: string;
+  seller_id: string;
+};
+
+type ChatSummaryRow = {
+  id: string;
+  buyer_id: string;
+  seller_id: string;
+  service_id: string;
+  last_message_at: string | null;
+  service_title: string;
+  other_user_id: string;
+  other_user_display_name: string | null;
+  other_user_username: string | null;
+  other_user_photo_url: string | null;
+  last_message_body: string | null;
+  last_message_sender: string | null;
+  last_message_created_at: string | null;
+  unread_count: string | number;
+};
+
 async function listChatsForUser(userId: string, limit: number, offset: number) {
   return pool.query(
     `
@@ -38,12 +60,28 @@ async function listChatsForUser(userId: string, limit: number, offset: number) {
              c.service_id,
              c.last_message_at,
              s.title AS service_title,
+             ou.id AS other_user_id,
+             ou.display_name AS other_user_display_name,
+             ou.username AS other_user_username,
+             op.url AS other_user_photo_url,
              lm.body AS last_message_body,
              lm.sender_id AS last_message_sender,
              lm.created_at AS last_message_created_at,
              COALESCE(mu.unread_count, 0) AS unread_count
       FROM chats c
       JOIN services s ON s.id = c.service_id
+      JOIN users ou
+        ON ou.id = CASE
+          WHEN c.buyer_id = $1 THEN c.seller_id
+          ELSE c.buyer_id
+        END
+      LEFT JOIN LATERAL (
+        SELECT up.url
+        FROM user_photos up
+        WHERE up.user_id = ou.id
+        ORDER BY up.sort_order ASC, up.url ASC
+        LIMIT 1
+      ) op ON true
       LEFT JOIN LATERAL (
         SELECT body, sender_id, created_at
         FROM messages m
@@ -60,12 +98,51 @@ async function listChatsForUser(userId: string, limit: number, offset: number) {
           AND (cr.last_read_at IS NULL OR m.created_at > cr.last_read_at)
       ) mu ON true
       WHERE c.buyer_id = $1 OR c.seller_id = $1
-      GROUP BY c.id, s.title, lm.body, lm.sender_id, lm.created_at, cr.last_read_at, mu.unread_count
+      GROUP BY c.id, s.title, ou.id, ou.display_name, ou.username, op.url, lm.body, lm.sender_id, lm.created_at, cr.last_read_at, mu.unread_count
       ORDER BY c.last_message_at DESC NULLS LAST
       LIMIT $2 OFFSET $3
     `,
     [userId, limit, offset]
   );
+}
+
+async function getAuthorizedChat(chatId: string, userId: string) {
+  const chatResult = await pool.query<ChatParticipantRow>(
+    "SELECT buyer_id, seller_id FROM chats WHERE id = $1",
+    [chatId]
+  );
+
+  if (!chatResult.rowCount) {
+    return { error: "chat_not_found" as const };
+  }
+
+  const chat = chatResult.rows[0];
+  if (chat.buyer_id !== userId && chat.seller_id !== userId) {
+    return { error: "forbidden" as const };
+  }
+
+  return { chat };
+}
+
+function serializeChatSummary(row: ChatSummaryRow) {
+  return {
+    id: row.id,
+    buyer_id: row.buyer_id,
+    seller_id: row.seller_id,
+    service_id: row.service_id,
+    last_message_at: row.last_message_at,
+    service_title: row.service_title,
+    other_user: {
+      id: row.other_user_id,
+      display_name: row.other_user_display_name,
+      username: row.other_user_username,
+      photo_url: row.other_user_photo_url
+    },
+    last_message_body: row.last_message_body,
+    last_message_sender: row.last_message_sender,
+    last_message_created_at: row.last_message_created_at,
+    unread_count: Number(row.unread_count)
+  };
 }
 
 export async function chatRoutes(app: FastifyInstance) {
@@ -76,7 +153,7 @@ export async function chatRoutes(app: FastifyInstance) {
     const query = listChatsSchema.parse(request.query);
     const result = await listChatsForUser(auth.userId, query.limit, query.offset);
 
-    reply.send(result.rows);
+    reply.send(result.rows.map(serializeChatSummary));
   });
 
   app.get("/chats/:id/messages", async (request, reply) => {
@@ -86,19 +163,9 @@ export async function chatRoutes(app: FastifyInstance) {
     const params = z.object({ id: z.string().uuid() }).parse(request.params);
     const query = listMessagesSchema.parse(request.query);
 
-    const chatResult = await pool.query(
-      "SELECT buyer_id, seller_id FROM chats WHERE id = $1",
-      [params.id]
-    );
-
-    if (!chatResult.rowCount) {
-      reply.code(404).send({ error: "chat_not_found" });
-      return;
-    }
-
-    const chat = chatResult.rows[0];
-    if (chat.buyer_id !== auth.userId && chat.seller_id !== auth.userId) {
-      reply.code(403).send({ error: "forbidden" });
+    const authorization = await getAuthorizedChat(params.id, auth.userId);
+    if ("error" in authorization) {
+      reply.code(authorization.error === "chat_not_found" ? 404 : 403).send({ error: authorization.error });
       return;
     }
 
@@ -117,35 +184,30 @@ export async function chatRoutes(app: FastifyInstance) {
     const params = z.object({ id: z.string().uuid() }).parse(request.params);
     const payload = createMessageSchema.parse(request.body);
 
-    const chatResult = await pool.query(
-      "SELECT buyer_id, seller_id FROM chats WHERE id = $1",
-      [params.id]
-    );
-
-    if (!chatResult.rowCount) {
-      reply.code(404).send({ error: "chat_not_found" });
-      return;
-    }
-
-    const chat = chatResult.rows[0];
-    if (chat.buyer_id !== auth.userId && chat.seller_id !== auth.userId) {
-      reply.code(403).send({ error: "forbidden" });
+    const authorization = await getAuthorizedChat(params.id, auth.userId);
+    if ("error" in authorization) {
+      reply.code(authorization.error === "chat_not_found" ? 404 : 403).send({ error: authorization.error });
       return;
     }
 
     const messageId = randomUUID();
-
-    await pool.query(
-      "INSERT INTO messages (id, chat_id, sender_id, body) VALUES ($1, $2, $3, $4)",
+    const insertResult = await pool.query(
+      `
+      INSERT INTO messages (id, chat_id, sender_id, body)
+      VALUES ($1, $2, $3, $4)
+      RETURNING id, sender_id, body, created_at
+      `,
       [messageId, params.id, auth.userId, payload.body]
     );
 
+    const message = insertResult.rows[0];
+
     await pool.query(
-      "UPDATE chats SET last_message_at = now(), updated_at = now() WHERE id = $1",
-      [params.id]
+      "UPDATE chats SET last_message_at = $2, updated_at = now() WHERE id = $1",
+      [params.id, message.created_at]
     );
 
-    reply.code(201).send({ id: messageId });
+    reply.code(201).send(message);
   });
 
   app.post("/chats/:id/read", async (request, reply) => {
@@ -155,19 +217,9 @@ export async function chatRoutes(app: FastifyInstance) {
     const params = z.object({ id: z.string().uuid() }).parse(request.params);
     const payload = markReadSchema.parse(request.body ?? {});
 
-    const chatResult = await pool.query(
-      "SELECT buyer_id, seller_id FROM chats WHERE id = $1",
-      [params.id]
-    );
-
-    if (!chatResult.rowCount) {
-      reply.code(404).send({ error: "chat_not_found" });
-      return;
-    }
-
-    const chat = chatResult.rows[0];
-    if (chat.buyer_id !== auth.userId && chat.seller_id !== auth.userId) {
-      reply.code(403).send({ error: "forbidden" });
+    const authorization = await getAuthorizedChat(params.id, auth.userId);
+    if ("error" in authorization) {
+      reply.code(authorization.error === "chat_not_found" ? 404 : 403).send({ error: authorization.error });
       return;
     }
 
@@ -197,7 +249,7 @@ export async function chatRoutes(app: FastifyInstance) {
     const query = listChatsSchema.parse(request.query);
     const result = await listChatsForUser(params.userId, query.limit, query.offset);
 
-    reply.send(result.rows);
+    reply.send(result.rows.map(serializeChatSummary));
   });
 
   app.post("/bookings/:bookingId/chat", async (request, reply) => {

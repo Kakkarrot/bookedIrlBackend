@@ -19,6 +19,8 @@
 - `GET /bookings` is the single inbox read endpoint and is seller-only; do not reintroduce buyer-role list variants unless the product actually needs them.
 - Booking status is limited to `requested`, `accepted`, `declined`; only the seller may accept or decline.
 - Accepting a booking creates the chat; direct chat creation is no longer part of the contract.
+- `GET /chats` and `GET /users/:userId/chats` should return render-ready chat summaries, including minimal `other_user` preview data and unread counts.
+- `POST /chats/:id/messages` returns the created message DTO so clients can append locally without refetching the whole thread.
 - User photos update: `POST /users/photos` replaces the authenticated user's photo URLs (max 6).
 - Photo uploads: `POST /uploads/photos/sign` returns signed upload URLs and public URLs for direct-to-storage uploads.
 - Photo deletions: `POST /uploads/photos/delete` deletes stored photos by path or public URL.
