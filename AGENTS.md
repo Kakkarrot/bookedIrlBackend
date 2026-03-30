@@ -8,6 +8,7 @@
 - Keep environment config validated and fail fast on misconfiguration.
 - After adding any feature, update this file and `README.md` with the new capability details.
 - Integration tests run the real Fastify app in-process with `app.inject()`, a disposable PostGIS-backed Postgres container via `testcontainers`, and a locally injected auth verifier instead of live Firebase.
+- Keep schema drift checks focused on contract-critical columns, indexes, and extensions instead of trying to snapshot the entire database structure.
 - Keep backend bootstrap seams testable: `buildServer` may accept injected pool/auth dependencies, but production behavior should remain the default.
 - OpenAPI spec is `openapi.yaml` and served at `GET /openapi.yaml` for client generation.
 - All API requests must send `X-API-Version` matching `openapi.yaml` `info.version`; mismatches return `426`.

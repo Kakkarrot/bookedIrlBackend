@@ -89,6 +89,7 @@ Current setup details:
 - The disposable database is bootstrapped from `src/db/schema.sql`.
 - Tests inject a local token verifier so they stay self-contained and do not depend on live Firebase.
 - The first smoke test covers `POST /auth/session` end to end against isolated Postgres.
+- The suite also includes a focused schema-contract test so drift in critical columns, indexes, or the PostGIS extension fails explicitly.
 
 ## Database setup
 
