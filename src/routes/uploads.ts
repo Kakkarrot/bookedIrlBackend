@@ -2,6 +2,7 @@ import { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { randomUUID } from "crypto";
 import { requireUser } from "../lib/auth";
+import { logRequestEvent } from "../lib/logging";
 import { storageClient, storageBucket } from "../lib/storage";
 
 const allowedContentTypes = new Set([
@@ -55,6 +56,11 @@ export async function uploadRoutes(app: FastifyInstance) {
       payload.files.map(async (file) => {
         if (!allowedContentTypes.has(file.contentType)) {
           reply.code(400);
+          logRequestEvent(request, "warn", "photo_upload_sign_rejected", {
+            reason: "invalid_content_type",
+            actor_user_id: auth.userId,
+            content_type: file.contentType
+          });
           throw new Error("invalid_content_type");
         }
 
@@ -67,6 +73,10 @@ export async function uploadRoutes(app: FastifyInstance) {
 
         if (error || !data) {
           reply.code(500);
+          logRequestEvent(request, "error", "photo_upload_sign_failed", {
+            actor_user_id: auth.userId,
+            storage_error: error?.message ?? "unknown"
+          });
           throw new Error("upload_url_failed");
         }
 
@@ -79,6 +89,10 @@ export async function uploadRoutes(app: FastifyInstance) {
       })
     );
 
+    logRequestEvent(request, "info", "photo_upload_urls_created", {
+      actor_user_id: auth.userId,
+      file_count: uploads.length
+    });
     reply.send({ uploads });
   });
 
@@ -95,22 +109,39 @@ export async function uploadRoutes(app: FastifyInstance) {
       [];
 
     if (!paths.length) {
+      logRequestEvent(request, "warn", "photo_delete_rejected", {
+        reason: "no_paths_provided",
+        actor_user_id: auth.userId
+      });
       reply.code(400).send({ error: "no_paths_provided" });
       return;
     }
 
     const safePaths = paths.filter((path) => path.startsWith(`users/${auth.userId}/`));
     if (!safePaths.length) {
+      logRequestEvent(request, "warn", "photo_delete_rejected", {
+        reason: "invalid_paths",
+        actor_user_id: auth.userId
+      });
       reply.code(403).send({ error: "invalid_paths" });
       return;
     }
 
     const { error } = await storageClient.storage.from(storageBucket).remove(safePaths);
     if (error) {
+      logRequestEvent(request, "error", "photo_delete_failed", {
+        actor_user_id: auth.userId,
+        file_count: safePaths.length,
+        storage_error: error.message
+      });
       reply.code(500).send({ error: "delete_failed" });
       return;
     }
 
+    logRequestEvent(request, "info", "photo_deleted", {
+      actor_user_id: auth.userId,
+      file_count: safePaths.length
+    });
     reply.send({ ok: true });
   });
 }

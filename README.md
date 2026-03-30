@@ -91,6 +91,17 @@ Current setup details:
 - The first smoke test covers `POST /auth/session` end to end against isolated Postgres.
 - The suite also includes a focused schema-contract test so drift in critical columns, indexes, or the PostGIS extension fails explicitly.
 
+## Logging
+
+Fastify request logging is enabled by default. The backend also emits structured application logs for:
+- auth failures
+- API version mismatches
+- validation and unexpected request failures
+- booking/chat write-path successes and business-rule rejections
+- upload signing/deletion successes and failures
+
+Logging is intentionally targeted: enough context to debug request outcomes without dumping full request bodies or sensitive data.
+
 ## Database setup
 
 Apply the schema to your Supabase Postgres instance:

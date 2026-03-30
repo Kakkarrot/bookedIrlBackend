@@ -15,6 +15,7 @@ import { uploadRoutes } from "./routes/uploads";
 import { ZodError } from "zod";
 import { createPool } from "./db/pool";
 import { type TokenVerifier, verifyFirebaseToken } from "./auth/firebase";
+import { logRequestEvent } from "./lib/logging";
 
 type BuildServerOptions = {
   pool?: Pool;
@@ -36,6 +37,10 @@ export function buildServer(options: BuildServerOptions = {}) {
     }
     const clientVersion = request.headers["x-api-version"];
     if (clientVersion !== apiVersion) {
+      logRequestEvent(request, "warn", "client_version_mismatch", {
+        client_version: clientVersion ?? null,
+        current_version: apiVersion
+      });
       reply.status(426).send({
         error: "client_out_of_date",
         current_version: apiVersion,
@@ -56,14 +61,22 @@ export function buildServer(options: BuildServerOptions = {}) {
   app.register(headlineRoutes);
   app.register(uploadRoutes);
 
-  app.setErrorHandler((error, _request, reply) => {
+  app.setErrorHandler((error, request, reply) => {
     if (error instanceof ZodError) {
+      logRequestEvent(request, "warn", "validation_error", {
+        details: error.errors
+      });
       reply.status(400).send({
         error: "validation_error",
         details: error.errors
       });
       return;
     }
+
+    logRequestEvent(request, "error", "request_failed", {
+      error: error instanceof Error ? error.message : String(error)
+    });
+
     reply.send(error);
   });
 

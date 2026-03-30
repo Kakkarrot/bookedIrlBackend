@@ -3,6 +3,7 @@ import { z } from "zod";
 import { randomUUID } from "crypto";
 import type { Pool } from "pg";
 import { requireUser } from "../lib/auth";
+import { logRequestEvent } from "../lib/logging";
 
 const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
 const timeOfDayValues = ["morning", "afternoon", "evening", "night"] as const;
@@ -147,6 +148,11 @@ export async function bookingRoutes(app: FastifyInstance) {
 
       if (!serviceResult.rowCount) {
         await client.query("ROLLBACK");
+        logRequestEvent(request, "warn", "booking_create_rejected", {
+          reason: "service_not_found",
+          actor_user_id: auth.userId,
+          service_id: payload.serviceId
+        });
         reply.code(404).send({ error: "service_not_found" });
         return;
       }
@@ -160,12 +166,22 @@ export async function bookingRoutes(app: FastifyInstance) {
       };
       if (!service.is_active) {
         await client.query("ROLLBACK");
+        logRequestEvent(request, "warn", "booking_create_rejected", {
+          reason: "service_not_bookable",
+          actor_user_id: auth.userId,
+          service_id: payload.serviceId
+        });
         reply.code(400).send({ error: "service_not_bookable" });
         return;
       }
 
       if (service.user_id === auth.userId) {
         await client.query("ROLLBACK");
+        logRequestEvent(request, "warn", "booking_create_rejected", {
+          reason: "cannot_book_own_service",
+          actor_user_id: auth.userId,
+          service_id: payload.serviceId
+        });
         reply.code(400).send({ error: "cannot_book_own_service" });
         return;
       }
@@ -185,6 +201,12 @@ export async function bookingRoutes(app: FastifyInstance) {
 
       if (existingBooking.rowCount) {
         await client.query("ROLLBACK");
+        logRequestEvent(request, "warn", "booking_create_rejected", {
+          reason: "booking_already_exists",
+          actor_user_id: auth.userId,
+          service_id: payload.serviceId,
+          seller_user_id: service.user_id
+        });
         reply.code(409).send({ error: "booking_already_exists" });
         return;
       }
@@ -216,10 +238,21 @@ export async function bookingRoutes(app: FastifyInstance) {
       );
 
       await client.query("COMMIT");
+      logRequestEvent(request, "info", "booking_created", {
+        booking_id: bookingId,
+        buyer_user_id: auth.userId,
+        seller_user_id: service.user_id,
+        service_id: payload.serviceId
+      });
       reply.code(201).send({ id: bookingId });
     } catch (error) {
       await client.query("ROLLBACK");
       if ((error as { code?: string }).code === "23505") {
+        logRequestEvent(request, "warn", "booking_create_rejected", {
+          reason: "booking_already_exists",
+          actor_user_id: auth.userId,
+          service_id: payload.serviceId
+        });
         reply.code(409).send({ error: "booking_already_exists" });
         return;
       }
@@ -247,6 +280,11 @@ export async function bookingRoutes(app: FastifyInstance) {
 
       if (!bookingResult.rowCount) {
         await client.query("ROLLBACK");
+        logRequestEvent(request, "warn", "booking_update_rejected", {
+          reason: "booking_not_found",
+          actor_user_id: auth.userId,
+          booking_id: params.bookingId
+        });
         reply.code(404).send({ error: "booking_not_found" });
         return;
       }
@@ -260,6 +298,11 @@ export async function bookingRoutes(app: FastifyInstance) {
 
       if (booking.buyer_id !== auth.userId && booking.seller_id !== auth.userId) {
         await client.query("ROLLBACK");
+        logRequestEvent(request, "warn", "booking_update_rejected", {
+          reason: "forbidden",
+          actor_user_id: auth.userId,
+          booking_id: params.bookingId
+        });
         reply.code(403).send({ error: "forbidden" });
         return;
       }
@@ -272,6 +315,12 @@ export async function bookingRoutes(app: FastifyInstance) {
         );
         if (!check.ok) {
           await client.query("ROLLBACK");
+          logRequestEvent(request, "warn", "booking_update_rejected", {
+            reason: check.error,
+            actor_user_id: auth.userId,
+            booking_id: params.bookingId,
+            next_status: payload.status
+          });
           reply.code(check.code).send({ error: check.error });
           return;
         }
@@ -291,15 +340,27 @@ export async function bookingRoutes(app: FastifyInstance) {
           );
 
           if (!existingChat.rowCount) {
+            const chatId = randomUUID();
             await client.query(
               "INSERT INTO chats (id, buyer_id, seller_id, participant_a, participant_b) VALUES ($1, $2, $3, $4, $5)",
-              [randomUUID(), booking.buyer_id, booking.seller_id, participantA, participantB]
+              [chatId, booking.buyer_id, booking.seller_id, participantA, participantB]
             );
+            logRequestEvent(request, "info", "chat_created_from_booking_accept", {
+              booking_id: params.bookingId,
+              chat_id: chatId,
+              buyer_user_id: booking.buyer_id,
+              seller_user_id: booking.seller_id
+            });
           }
         }
       }
 
       await client.query("COMMIT");
+      logRequestEvent(request, "info", "booking_updated", {
+        booking_id: params.bookingId,
+        actor_user_id: auth.userId,
+        next_status: payload.status ?? null
+      });
       reply.send({ ok: true });
     } catch (error) {
       await client.query("ROLLBACK");

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { randomUUID } from "crypto";
 import type { Pool } from "pg";
 import { requireUser } from "../lib/auth";
+import { logRequestEvent } from "../lib/logging";
 
 const listMessagesSchema = z.object({
   limit: z.coerce.number().min(1).max(100).default(50)
@@ -167,6 +168,11 @@ export async function chatRoutes(app: FastifyInstance) {
 
     const authorization = await getAuthorizedChat(db, params.id, auth.userId);
     if ("error" in authorization) {
+      logRequestEvent(request, "warn", "chat_messages_rejected", {
+        reason: authorization.error,
+        actor_user_id: auth.userId,
+        chat_id: params.id
+      });
       reply.code(authorization.error === "chat_not_found" ? 404 : 403).send({ error: authorization.error });
       return;
     }
@@ -188,6 +194,11 @@ export async function chatRoutes(app: FastifyInstance) {
 
     const authorization = await getAuthorizedChat(db, params.id, auth.userId);
     if ("error" in authorization) {
+      logRequestEvent(request, "warn", "chat_message_create_rejected", {
+        reason: authorization.error,
+        actor_user_id: auth.userId,
+        chat_id: params.id
+      });
       reply.code(authorization.error === "chat_not_found" ? 404 : 403).send({ error: authorization.error });
       return;
     }
@@ -209,6 +220,11 @@ export async function chatRoutes(app: FastifyInstance) {
       [params.id, message.created_at]
     );
 
+    logRequestEvent(request, "info", "chat_message_created", {
+      chat_id: params.id,
+      message_id: messageId,
+      actor_user_id: auth.userId
+    });
     reply.code(201).send(message);
   });
 
@@ -221,6 +237,11 @@ export async function chatRoutes(app: FastifyInstance) {
 
     const authorization = await getAuthorizedChat(db, params.id, auth.userId);
     if ("error" in authorization) {
+      logRequestEvent(request, "warn", "chat_read_rejected", {
+        reason: authorization.error,
+        actor_user_id: auth.userId,
+        chat_id: params.id
+      });
       reply.code(authorization.error === "chat_not_found" ? 404 : 403).send({ error: authorization.error });
       return;
     }
@@ -235,6 +256,10 @@ export async function chatRoutes(app: FastifyInstance) {
       [params.id, auth.userId, payload.readAt ?? null]
     );
 
+    logRequestEvent(request, "info", "chat_marked_read", {
+      chat_id: params.id,
+      actor_user_id: auth.userId
+    });
     reply.send({ ok: true });
   });
 
@@ -244,6 +269,11 @@ export async function chatRoutes(app: FastifyInstance) {
 
     const params = userIdParamsSchema.parse(request.params);
     if (params.userId !== auth.userId) {
+      logRequestEvent(request, "warn", "chat_list_rejected", {
+        reason: "forbidden",
+        actor_user_id: auth.userId,
+        requested_user_id: params.userId
+      });
       reply.code(403).send({ error: "forbidden" });
       return;
     }
@@ -266,17 +296,32 @@ export async function chatRoutes(app: FastifyInstance) {
     );
 
     if (!bookingResult.rowCount) {
+      logRequestEvent(request, "warn", "booking_chat_create_rejected", {
+        reason: "booking_not_found",
+        actor_user_id: auth.userId,
+        booking_id: params.bookingId
+      });
       reply.code(404).send({ error: "booking_not_found" });
       return;
     }
 
     const booking = bookingResult.rows[0];
     if (booking.buyer_id !== auth.userId && booking.seller_id !== auth.userId) {
+      logRequestEvent(request, "warn", "booking_chat_create_rejected", {
+        reason: "forbidden",
+        actor_user_id: auth.userId,
+        booking_id: params.bookingId
+      });
       reply.code(403).send({ error: "forbidden" });
       return;
     }
 
     if (booking.status !== "accepted") {
+      logRequestEvent(request, "warn", "booking_chat_create_rejected", {
+        reason: "booking_not_accepted",
+        actor_user_id: auth.userId,
+        booking_id: params.bookingId
+      });
       reply.code(400).send({ error: "booking_not_accepted" });
       return;
     }
@@ -287,6 +332,11 @@ export async function chatRoutes(app: FastifyInstance) {
     );
 
     if (existing.rowCount) {
+      logRequestEvent(request, "info", "booking_chat_reused", {
+        booking_id: params.bookingId,
+        chat_id: existing.rows[0].id,
+        actor_user_id: auth.userId
+      });
       reply.send({ id: existing.rows[0].id });
       return;
     }
@@ -297,6 +347,11 @@ export async function chatRoutes(app: FastifyInstance) {
       [chatId, booking.buyer_id, booking.seller_id, booking.service_id]
     );
 
+    logRequestEvent(request, "info", "booking_chat_created", {
+      booking_id: params.bookingId,
+      chat_id: chatId,
+      actor_user_id: auth.userId
+    });
     reply.code(201).send({ id: chatId });
   });
 }
