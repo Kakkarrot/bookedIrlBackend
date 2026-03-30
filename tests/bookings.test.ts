@@ -211,3 +211,68 @@ test("PATCH /bookings/:bookingId only allows the seller to accept and blocks lat
     await testApp.close();
   }
 });
+
+test("PATCH /bookings/:bookingId creates a chat when the seller accepts the booking", async () => {
+  const { testApp, buyer, seller, service } = await createBookingsTestContext();
+
+  try {
+    const createResponse = await testApp.app.inject({
+      method: "POST",
+      url: "/bookings",
+      headers: {
+        authorization: "Bearer buyer-token",
+        "x-api-version": testApp.apiVersion
+      },
+      payload: {
+        serviceId: service.serviceId,
+        requestedDate: "2026-04-22",
+        timeOfDay: "night",
+        note: "Let's lock this in"
+      }
+    });
+
+    assert.equal(createResponse.statusCode, 201);
+    const { id: bookingId } = createResponse.json() as { id: string };
+
+    const acceptResponse = await testApp.app.inject({
+      method: "PATCH",
+      url: `/bookings/${bookingId}`,
+      headers: {
+        authorization: "Bearer seller-token",
+        "x-api-version": testApp.apiVersion
+      },
+      payload: {
+        status: "accepted"
+      }
+    });
+
+    assert.equal(acceptResponse.statusCode, 200);
+    assert.deepEqual(acceptResponse.json(), { ok: true });
+
+    const chatsResult = await testApp.pool.query(
+      `
+      SELECT buyer_id, seller_id, participant_a, participant_b
+      FROM chats
+      ORDER BY created_at ASC
+      `
+    );
+
+    assert.equal(chatsResult.rowCount, 1);
+    assert.equal(chatsResult.rows[0].buyer_id, buyer.userId);
+    assert.equal(chatsResult.rows[0].seller_id, seller.userId);
+
+    const orderedParticipants = [buyer.userId, seller.userId].sort();
+    assert.equal(chatsResult.rows[0].participant_a, orderedParticipants[0]);
+    assert.equal(chatsResult.rows[0].participant_b, orderedParticipants[1]);
+
+    const bookingResult = await testApp.pool.query(
+      "SELECT status FROM bookings WHERE id = $1",
+      [bookingId]
+    );
+
+    assert.equal(bookingResult.rowCount, 1);
+    assert.equal(bookingResult.rows[0].status, "accepted");
+  } finally {
+    await testApp.close();
+  }
+});
