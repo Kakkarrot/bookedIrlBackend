@@ -28,7 +28,7 @@ async function waitForDatabase(pool: Pool, attempts = 30, delayMs = 1000) {
   throw lastError instanceof Error ? lastError : new Error("Database never became ready");
 }
 
-function applyTestEnv(databaseUrl: string) {
+export function applyTestEnv(databaseUrl: string) {
   process.env.NODE_ENV = "test";
   process.env.DATABASE_URL = databaseUrl;
   process.env.FIREBASE_PROJECT_ID = process.env.FIREBASE_PROJECT_ID ?? "test-project";

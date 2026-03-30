@@ -64,6 +64,14 @@ npm install
 npm run dev
 ```
 
+For local pre-build verification, run:
+
+```bash
+npm run build:local
+```
+
+This keeps `npm run build` as compile-only for hosted environments while still giving local development a one-command test-then-build path.
+
 ## Integration tests
 
 Integration tests run the real Fastify app in-process and provision an isolated PostGIS-enabled Postgres database with `testcontainers`.

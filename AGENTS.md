@@ -12,6 +12,7 @@
 - OpenAPI spec is `openapi.yaml` and served at `GET /openapi.yaml` for client generation.
 - All API requests must send `X-API-Version` matching `openapi.yaml` `info.version`; mismatches return `426`.
 - Build: `npm run build` runs `tsc`.
+- Local pre-build verification: `npm run build:local` runs integration tests and then `tsc`; keep `npm run build` as compile-only so hosted build environments like Render are not coupled to Docker-backed local test requirements.
 - Metadata: `GET /headlines` returns the allowed headline options list.
 - Discover feed: `GET /users/nearby-qualified` is the qualified discover source and supports `limit` + `offset` pagination plus optional server-side `query` search; candidates need photos + an active service, while missing candidate locations are allowed and sorted last.
 - Service create supports optional `isActive`; if omitted, backend defaults it to `true`.
