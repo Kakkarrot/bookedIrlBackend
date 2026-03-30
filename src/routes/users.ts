@@ -1,7 +1,6 @@
 import { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { randomUUID } from "crypto";
-import { pool } from "../db/pool";
 import { requireUser } from "../lib/auth";
 
 const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
@@ -85,6 +84,8 @@ const qualifiedNearbySchema = z.object({
 });
 
 export async function userRoutes(app: FastifyInstance) {
+  const db = app.dbPool;
+
   async function replaceUserPhotos(
     client: import("pg").PoolClient,
     userId: string,
@@ -103,7 +104,7 @@ export async function userRoutes(app: FastifyInstance) {
     const auth = await requireUser(request, reply);
     if (!auth) return;
 
-    const userResult = await pool.query(
+    const userResult = await db.query(
       "SELECT id, display_name, username, email, headline, bio, birthday, onboarding_step, intent_looking, intent_offering FROM users WHERE id = $1",
       [auth.userId]
     );
@@ -114,15 +115,15 @@ export async function userRoutes(app: FastifyInstance) {
     }
 
     const [photos, socialLinks, services] = await Promise.all([
-      pool.query(
+      db.query(
         "SELECT url, sort_order FROM user_photos WHERE user_id = $1 ORDER BY sort_order",
         [auth.userId]
       ),
-      pool.query(
+      db.query(
         "SELECT url, sort_order FROM user_social_links WHERE user_id = $1 ORDER BY sort_order",
         [auth.userId]
       ),
-      pool.query(
+      db.query(
         "SELECT id, user_id, title, description, price_dollars, duration_minutes, is_active FROM services WHERE user_id = $1 ORDER BY created_at DESC",
         [auth.userId]
       )
@@ -142,7 +143,7 @@ export async function userRoutes(app: FastifyInstance) {
 
     const params = userIdParamsSchema.parse(request.params);
 
-    const userResult = await pool.query(
+    const userResult = await db.query(
         "SELECT id, display_name, username, email, headline, bio, birthday, onboarding_step, intent_looking, intent_offering FROM users WHERE id = $1",
       [params.userId]
     );
@@ -155,7 +156,7 @@ export async function userRoutes(app: FastifyInstance) {
     const baseUser = userResult.rows[0];
     const isSelf = auth.userId === params.userId;
     if (!isSelf) {
-      const discoverableResult = await pool.query(
+      const discoverableResult = await db.query(
         `
           SELECT EXISTS (
             SELECT 1
@@ -180,15 +181,15 @@ export async function userRoutes(app: FastifyInstance) {
     }
 
     const [photos, socialLinks, services] = await Promise.all([
-      pool.query(
+      db.query(
         "SELECT url, sort_order FROM user_photos WHERE user_id = $1 ORDER BY sort_order",
         [params.userId]
       ),
-      pool.query(
+      db.query(
         "SELECT url, sort_order FROM user_social_links WHERE user_id = $1 ORDER BY sort_order",
         [params.userId]
       ),
-      pool.query(
+      db.query(
         isSelf
           ? "SELECT id, user_id, title, description, price_dollars, duration_minutes, is_active FROM services WHERE user_id = $1 ORDER BY created_at DESC"
           : "SELECT id, user_id, title, description, price_dollars, duration_minutes, is_active FROM services WHERE user_id = $1 AND is_active = true ORDER BY created_at DESC",
@@ -220,7 +221,7 @@ export async function userRoutes(app: FastifyInstance) {
     if (!auth) return;
 
     const payload = updateUserSchema.parse(request.body);
-    const client = await pool.connect();
+    const client = await db.connect();
 
     try {
       await client.query("BEGIN");
@@ -299,7 +300,7 @@ export async function userRoutes(app: FastifyInstance) {
     if (!auth) return;
 
     const payload = updatePhotosSchema.parse(request.body);
-    const client = await pool.connect();
+    const client = await db.connect();
 
     try {
       await client.query("BEGIN");
@@ -321,7 +322,7 @@ export async function userRoutes(app: FastifyInstance) {
     const query = nearbySchema.parse(request.query);
     const radiusMeters = query.radiusKm * 1000;
 
-    const nearbyResult = await pool.query(
+    const nearbyResult = await db.query(
       `
         SELECT u.id,
                u.display_name,
@@ -347,7 +348,7 @@ export async function userRoutes(app: FastifyInstance) {
 
     const userIds = (nearbyResult.rows as NearbyUserRow[]).map((row) => row.id);
     const photosResult = userIds.length
-      ? await pool.query(
+      ? await db.query(
           "SELECT user_id, url, sort_order FROM user_photos WHERE user_id = ANY($1::uuid[]) ORDER BY sort_order",
           [userIds]
         )
@@ -375,7 +376,7 @@ export async function userRoutes(app: FastifyInstance) {
     const query = qualifiedNearbySchema.parse(request.query);
     const searchPattern = query.query ? `%${query.query}%` : null;
 
-    const locationResult = await pool.query(
+    const locationResult = await db.query(
       "SELECT location FROM user_locations WHERE user_id = $1",
       [auth.userId]
     );
@@ -385,7 +386,7 @@ export async function userRoutes(app: FastifyInstance) {
       return;
     }
 
-    const nearbyResult = await pool.query(
+    const nearbyResult = await db.query(
       `
         WITH me AS (
           SELECT location
@@ -437,7 +438,7 @@ export async function userRoutes(app: FastifyInstance) {
 
     const userIds = (nearbyResult.rows as NearbyUserRow[]).map((row) => row.id);
     const photosResult = userIds.length
-      ? await pool.query(
+      ? await db.query(
           "SELECT user_id, url, sort_order FROM user_photos WHERE user_id = ANY($1::uuid[]) ORDER BY sort_order",
           [userIds]
         )
@@ -470,7 +471,7 @@ export async function userRoutes(app: FastifyInstance) {
       return;
     }
 
-    const photosResult = await pool.query(
+    const photosResult = await db.query(
       `
         SELECT up.user_id, up.url, up.sort_order
         FROM user_photos up

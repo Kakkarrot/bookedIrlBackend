@@ -8,6 +8,8 @@ CREATE TABLE IF NOT EXISTS users (
   email text UNIQUE,
   headline text,
   bio text,
+  birthday date,
+  onboarding_step text NOT NULL DEFAULT 'BIRTHDAY',
   intent_looking boolean NOT NULL DEFAULT false,
   intent_offering boolean NOT NULL DEFAULT false,
   created_at timestamptz NOT NULL DEFAULT now(),
@@ -82,7 +84,9 @@ CREATE TABLE IF NOT EXISTS chats (
   id uuid PRIMARY KEY,
   buyer_id uuid NOT NULL REFERENCES users(id),
   seller_id uuid NOT NULL REFERENCES users(id),
-  service_id uuid NOT NULL REFERENCES services(id),
+  participant_a uuid REFERENCES users(id),
+  participant_b uuid REFERENCES users(id),
+  service_id uuid REFERENCES services(id),
   last_message_at timestamptz,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
@@ -114,7 +118,10 @@ CREATE INDEX IF NOT EXISTS bookings_participant_b_idx ON bookings(participant_b)
 CREATE UNIQUE INDEX IF NOT EXISTS bookings_open_pair_idx ON bookings(participant_a, participant_b) WHERE status IN ('requested', 'accepted');
 CREATE INDEX IF NOT EXISTS chats_buyer_id_idx ON chats(buyer_id);
 CREATE INDEX IF NOT EXISTS chats_seller_id_idx ON chats(seller_id);
+CREATE INDEX IF NOT EXISTS chats_participant_a_idx ON chats(participant_a);
+CREATE INDEX IF NOT EXISTS chats_participant_b_idx ON chats(participant_b);
 CREATE UNIQUE INDEX IF NOT EXISTS chats_participants_service_idx ON chats(buyer_id, seller_id, service_id);
+CREATE UNIQUE INDEX IF NOT EXISTS chats_participants_pair_idx ON chats(participant_a, participant_b) WHERE participant_a IS NOT NULL AND participant_b IS NOT NULL;
 CREATE INDEX IF NOT EXISTS messages_chat_id_idx ON messages(chat_id);
 CREATE INDEX IF NOT EXISTS chat_reads_user_id_idx ON chat_reads(user_id);
 CREATE INDEX IF NOT EXISTS user_locations_gix ON user_locations USING GIST(location);

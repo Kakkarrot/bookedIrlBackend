@@ -1,7 +1,7 @@
 import { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { randomUUID } from "crypto";
-import { pool } from "../db/pool";
+import type { Pool } from "pg";
 import { requireUser } from "../lib/auth";
 
 const listMessagesSchema = z.object({
@@ -51,8 +51,8 @@ type ChatSummaryRow = {
   unread_count: string | number;
 };
 
-async function listChatsForUser(userId: string, limit: number, offset: number) {
-  return pool.query(
+async function listChatsForUser(db: Pool, userId: string, limit: number, offset: number) {
+  return db.query(
     `
       SELECT c.id,
              c.buyer_id,
@@ -106,8 +106,8 @@ async function listChatsForUser(userId: string, limit: number, offset: number) {
   );
 }
 
-async function getAuthorizedChat(chatId: string, userId: string) {
-  const chatResult = await pool.query<ChatParticipantRow>(
+async function getAuthorizedChat(db: Pool, chatId: string, userId: string) {
+  const chatResult = await db.query<ChatParticipantRow>(
     "SELECT buyer_id, seller_id FROM chats WHERE id = $1",
     [chatId]
   );
@@ -146,12 +146,14 @@ function serializeChatSummary(row: ChatSummaryRow) {
 }
 
 export async function chatRoutes(app: FastifyInstance) {
+  const db = app.dbPool;
+
   app.get("/chats", async (request, reply) => {
     const auth = await requireUser(request, reply);
     if (!auth) return;
 
     const query = listChatsSchema.parse(request.query);
-    const result = await listChatsForUser(auth.userId, query.limit, query.offset);
+    const result = await listChatsForUser(db, auth.userId, query.limit, query.offset);
 
     reply.send(result.rows.map(serializeChatSummary));
   });
@@ -163,13 +165,13 @@ export async function chatRoutes(app: FastifyInstance) {
     const params = z.object({ id: z.string().uuid() }).parse(request.params);
     const query = listMessagesSchema.parse(request.query);
 
-    const authorization = await getAuthorizedChat(params.id, auth.userId);
+    const authorization = await getAuthorizedChat(db, params.id, auth.userId);
     if ("error" in authorization) {
       reply.code(authorization.error === "chat_not_found" ? 404 : 403).send({ error: authorization.error });
       return;
     }
 
-    const messages = await pool.query(
+    const messages = await db.query(
       "SELECT id, sender_id, body, created_at FROM messages WHERE chat_id = $1 ORDER BY created_at DESC LIMIT $2",
       [params.id, query.limit]
     );
@@ -184,14 +186,14 @@ export async function chatRoutes(app: FastifyInstance) {
     const params = z.object({ id: z.string().uuid() }).parse(request.params);
     const payload = createMessageSchema.parse(request.body);
 
-    const authorization = await getAuthorizedChat(params.id, auth.userId);
+    const authorization = await getAuthorizedChat(db, params.id, auth.userId);
     if ("error" in authorization) {
       reply.code(authorization.error === "chat_not_found" ? 404 : 403).send({ error: authorization.error });
       return;
     }
 
     const messageId = randomUUID();
-    const insertResult = await pool.query(
+    const insertResult = await db.query(
       `
       INSERT INTO messages (id, chat_id, sender_id, body)
       VALUES ($1, $2, $3, $4)
@@ -202,7 +204,7 @@ export async function chatRoutes(app: FastifyInstance) {
 
     const message = insertResult.rows[0];
 
-    await pool.query(
+    await db.query(
       "UPDATE chats SET last_message_at = $2, updated_at = now() WHERE id = $1",
       [params.id, message.created_at]
     );
@@ -217,13 +219,13 @@ export async function chatRoutes(app: FastifyInstance) {
     const params = z.object({ id: z.string().uuid() }).parse(request.params);
     const payload = markReadSchema.parse(request.body ?? {});
 
-    const authorization = await getAuthorizedChat(params.id, auth.userId);
+    const authorization = await getAuthorizedChat(db, params.id, auth.userId);
     if ("error" in authorization) {
       reply.code(authorization.error === "chat_not_found" ? 404 : 403).send({ error: authorization.error });
       return;
     }
 
-    await pool.query(
+    await db.query(
       `
       INSERT INTO chat_reads (chat_id, user_id, last_read_at, updated_at)
       VALUES ($1, $2, COALESCE($3, now()), now())
@@ -247,7 +249,7 @@ export async function chatRoutes(app: FastifyInstance) {
     }
 
     const query = listChatsSchema.parse(request.query);
-    const result = await listChatsForUser(params.userId, query.limit, query.offset);
+    const result = await listChatsForUser(db, params.userId, query.limit, query.offset);
 
     reply.send(result.rows.map(serializeChatSummary));
   });
@@ -258,7 +260,7 @@ export async function chatRoutes(app: FastifyInstance) {
 
     const params = bookingIdParamsSchema.parse(request.params);
 
-    const bookingResult = await pool.query(
+    const bookingResult = await db.query(
       "SELECT buyer_id, seller_id, service_id, status FROM bookings WHERE id = $1",
       [params.bookingId]
     );
@@ -279,7 +281,7 @@ export async function chatRoutes(app: FastifyInstance) {
       return;
     }
 
-    const existing = await pool.query(
+    const existing = await db.query(
       "SELECT id FROM chats WHERE buyer_id = $1 AND seller_id = $2 AND service_id = $3",
       [booking.buyer_id, booking.seller_id, booking.service_id]
     );
@@ -290,7 +292,7 @@ export async function chatRoutes(app: FastifyInstance) {
     }
 
     const chatId = randomUUID();
-    await pool.query(
+    await db.query(
       "INSERT INTO chats (id, buyer_id, seller_id, service_id) VALUES ($1, $2, $3, $4)",
       [chatId, booking.buyer_id, booking.seller_id, booking.service_id]
     );

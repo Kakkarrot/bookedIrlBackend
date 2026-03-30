@@ -1,7 +1,7 @@
 import { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { randomUUID } from "crypto";
-import { pool } from "../db/pool";
+import type { Pool } from "pg";
 import { requireUser } from "../lib/auth";
 
 const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
@@ -83,8 +83,8 @@ const sellerInboxSelect = `
   ) buyer_photo ON true
 `;
 
-async function listSellerInboxBookings(userId: string, limit: number, offset: number) {
-  return pool.query(
+async function listSellerInboxBookings(db: Pool, userId: string, limit: number, offset: number) {
+  return db.query(
     `${sellerInboxSelect}
      WHERE b.seller_id = $1
      ORDER BY b.created_at DESC
@@ -118,12 +118,14 @@ function toBookingResponse(row: Record<string, unknown>) {
 }
 
 export async function bookingRoutes(app: FastifyInstance) {
+  const db = app.dbPool;
+
   app.get("/bookings", async (request, reply) => {
     const auth = await requireUser(request, reply);
     if (!auth) return;
 
     const query = listBookingsSchema.parse(request.query);
-    const result = await listSellerInboxBookings(auth.userId, query.limit, query.offset);
+    const result = await listSellerInboxBookings(db, auth.userId, query.limit, query.offset);
 
     reply.send(result.rows.map(toBookingResponse));
   });
@@ -133,7 +135,7 @@ export async function bookingRoutes(app: FastifyInstance) {
     if (!auth) return;
 
     const payload = createBookingSchema.parse(request.body);
-    const client = await pool.connect();
+    const client = await db.connect();
 
     try {
       await client.query("BEGIN");
@@ -233,7 +235,7 @@ export async function bookingRoutes(app: FastifyInstance) {
 
     const params = bookingIdParamsSchema.parse(request.params);
     const payload = updateBookingSchema.parse(request.body);
-    const client = await pool.connect();
+    const client = await db.connect();
 
     try {
       await client.query("BEGIN");

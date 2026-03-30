@@ -1,4 +1,5 @@
 import admin from "firebase-admin";
+import type { DecodedIdToken } from "firebase-admin/auth";
 import { env } from "../config/env";
 
 if (!admin.apps.length) {
@@ -14,6 +15,8 @@ if (!admin.apps.length) {
     })
   });
 }
+
+export type TokenVerifier = (token: string) => Promise<DecodedIdToken>;
 
 export async function verifyFirebaseToken(token: string) {
   return admin.auth().verifyIdToken(token);

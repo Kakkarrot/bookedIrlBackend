@@ -1,4 +1,5 @@
 import Fastify from "fastify";
+import type { Pool } from "pg";
 import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
 import { healthRoutes } from "./routes/health";
@@ -12,9 +13,18 @@ import { openapiRoutes } from "./routes/openapi";
 import { headlineRoutes } from "./routes/headlines";
 import { uploadRoutes } from "./routes/uploads";
 import { ZodError } from "zod";
+import { createPool } from "./db/pool";
+import { type TokenVerifier, verifyFirebaseToken } from "./auth/firebase";
 
-export function buildServer() {
+type BuildServerOptions = {
+  pool?: Pool;
+  tokenVerifier?: TokenVerifier;
+};
+
+export function buildServer(options: BuildServerOptions = {}) {
   const app = Fastify({ logger: true });
+  app.decorate("dbPool", options.pool ?? createPool());
+  app.decorate("tokenVerifier", options.tokenVerifier ?? verifyFirebaseToken);
 
   app.register(cors, { origin: true });
   app.register(helmet);

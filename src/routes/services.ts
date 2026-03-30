@@ -1,7 +1,6 @@
 import { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { randomUUID } from "crypto";
-import { pool } from "../db/pool";
 import { requireUser } from "../lib/auth";
 
 const createServiceSchema = z.object({
@@ -33,6 +32,8 @@ const userIdParamsSchema = z.object({
 });
 
 export async function serviceRoutes(app: FastifyInstance) {
+  const db = app.dbPool;
+
   app.get("/services", async (request, reply) => {
     const auth = await requireUser(request, reply);
     if (!auth) return;
@@ -43,7 +44,7 @@ export async function serviceRoutes(app: FastifyInstance) {
       : [];
 
     const result = userIds.length
-      ? await pool.query(
+      ? await db.query(
           `
           SELECT s.id, s.user_id, s.title, s.description, s.price_dollars, s.duration_minutes, s.is_active
           FROM services s
@@ -55,7 +56,7 @@ export async function serviceRoutes(app: FastifyInstance) {
           `,
           [userIds]
         )
-      : await pool.query(
+      : await db.query(
           "SELECT id, user_id, title, description, price_dollars, duration_minutes, is_active FROM services WHERE user_id = $1 ORDER BY created_at DESC",
           [auth.userId]
         );
@@ -69,7 +70,7 @@ export async function serviceRoutes(app: FastifyInstance) {
 
     const params = serviceIdParamsSchema.parse(request.params);
 
-    const result = await pool.query(
+    const result = await db.query(
       `
       SELECT s.id, s.user_id, s.title, s.description, s.price_dollars, s.duration_minutes, s.is_active
       FROM services s
@@ -99,7 +100,7 @@ export async function serviceRoutes(app: FastifyInstance) {
     if (!auth) return;
 
     const payload = createServiceSchema.parse(request.body);
-    const countResult = await pool.query(
+    const countResult = await db.query(
       "SELECT COUNT(*)::int AS count FROM services WHERE user_id = $1",
       [auth.userId]
     );
@@ -111,7 +112,7 @@ export async function serviceRoutes(app: FastifyInstance) {
 
     const serviceId = randomUUID();
 
-    await pool.query(
+    await db.query(
       "INSERT INTO services (id, user_id, title, description, price_dollars, duration_minutes, is_active) VALUES ($1, $2, $3, $4, $5, $6, $7)",
       [
         serviceId,
@@ -134,7 +135,7 @@ export async function serviceRoutes(app: FastifyInstance) {
     const params = serviceIdParamsSchema.parse(request.params);
     const payload = updateServiceSchema.parse(request.body);
 
-    const serviceResult = await pool.query(
+    const serviceResult = await db.query(
       "SELECT user_id FROM services WHERE id = $1",
       [params.serviceId]
     );
@@ -149,7 +150,7 @@ export async function serviceRoutes(app: FastifyInstance) {
       return;
     }
 
-    await pool.query(
+    await db.query(
       `UPDATE services
        SET title = COALESCE($1, title),
            description = COALESCE($2, description),
@@ -182,7 +183,7 @@ export async function serviceRoutes(app: FastifyInstance) {
     }
 
     const payload = createServiceSchema.parse(request.body);
-    const countResult = await pool.query(
+    const countResult = await db.query(
       "SELECT COUNT(*)::int AS count FROM services WHERE user_id = $1",
       [params.userId]
     );
@@ -194,7 +195,7 @@ export async function serviceRoutes(app: FastifyInstance) {
 
     const serviceId = randomUUID();
 
-    await pool.query(
+    await db.query(
       "INSERT INTO services (id, user_id, title, description, price_dollars, duration_minutes, is_active) VALUES ($1, $2, $3, $4, $5, $6, $7)",
       [
         serviceId,
@@ -216,7 +217,7 @@ export async function serviceRoutes(app: FastifyInstance) {
 
     const params = serviceIdParamsSchema.parse(request.params);
 
-    const serviceResult = await pool.query(
+    const serviceResult = await db.query(
       "SELECT user_id FROM services WHERE id = $1",
       [params.serviceId]
     );
@@ -231,7 +232,7 @@ export async function serviceRoutes(app: FastifyInstance) {
       return;
     }
 
-    await pool.query("DELETE FROM services WHERE id = $1", [params.serviceId]);
+    await db.query("DELETE FROM services WHERE id = $1", [params.serviceId]);
     reply.send({ ok: true });
   });
 
@@ -242,7 +243,7 @@ export async function serviceRoutes(app: FastifyInstance) {
     const params = userIdParamsSchema.parse(request.params);
 
     const isSelf = params.userId === auth.userId;
-    const result = await pool.query(
+    const result = await db.query(
       isSelf
         ? "SELECT id, user_id, title, description, price_dollars, duration_minutes, is_active FROM services WHERE user_id = $1 ORDER BY created_at DESC"
         : `

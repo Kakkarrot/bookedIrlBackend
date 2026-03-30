@@ -1,0 +1,10 @@
+import "fastify";
+import type { Pool } from "pg";
+import type { TokenVerifier } from "../auth/firebase";
+
+declare module "fastify" {
+  interface FastifyInstance {
+    dbPool: Pool;
+    tokenVerifier: TokenVerifier;
+  }
+}

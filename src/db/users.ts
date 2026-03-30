@@ -1,10 +1,10 @@
 import { randomUUID } from "crypto";
 import type { DecodedIdToken } from "firebase-admin/auth";
-import { pool } from "./pool";
+import type { Pool } from "pg";
 
 const allowedProviders = new Set(["google.com", "apple.com"]);
 
-export async function getOrCreateUserId(token: DecodedIdToken) {
+export async function getOrCreateUserId(pool: Pool, token: DecodedIdToken) {
   const provider = token.firebase?.sign_in_provider ?? "firebase";
   if (!allowedProviders.has(provider)) {
     throw new Error("unsupported_auth_provider");

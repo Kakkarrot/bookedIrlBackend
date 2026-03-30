@@ -64,6 +64,24 @@ npm install
 npm run dev
 ```
 
+## Integration tests
+
+Integration tests run the real Fastify app in-process and provision an isolated PostGIS-enabled Postgres database with `testcontainers`.
+
+Requirements:
+- Docker must be running locally.
+
+Run the suite with:
+
+```bash
+npm run test:integration
+```
+
+Current setup details:
+- The disposable database is bootstrapped from `src/db/schema.sql`.
+- Tests inject a local token verifier so they stay self-contained and do not depend on live Firebase.
+- The first smoke test covers `POST /auth/session` end to end against isolated Postgres.
+
 ## Database setup
 
 Apply the schema to your Supabase Postgres instance:
