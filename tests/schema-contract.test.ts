@@ -1,5 +1,5 @@
-import test from "node:test";
-import assert from "node:assert/strict";
+import test = require("node:test");
+import * as assert from "node:assert/strict";
 import { createIntegrationHarness } from "./helpers/integrationHarness";
 
 async function getColumnNames(pool: Awaited<ReturnType<typeof createIntegrationHarness>>["pool"], tableName: string) {

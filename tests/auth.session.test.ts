@@ -1,5 +1,5 @@
-import test from "node:test";
-import assert from "node:assert/strict";
+import test = require("node:test");
+import * as assert from "node:assert/strict";
 import { buildDecodedToken, createTestApp } from "./helpers/testApp";
 
 test("POST /auth/session creates a user in isolated Postgres", async () => {
