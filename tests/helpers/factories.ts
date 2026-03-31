@@ -18,6 +18,18 @@ type ServiceFactoryInput = {
   isActive?: boolean;
 };
 
+type PhotoFactoryInput = {
+  userId: string;
+  url?: string;
+  sortOrder?: number;
+};
+
+type LocationFactoryInput = {
+  userId: string;
+  lat: number;
+  lng: number;
+};
+
 export async function createUserWithIdentity(pool: Pool, input: UserFactoryInput = {}) {
   const userId = randomUUID();
   const uid = input.uid ?? randomUUID();
@@ -68,4 +80,35 @@ export async function createService(pool: Pool, input: ServiceFactoryInput) {
   );
 
   return { serviceId };
+}
+
+export async function createPhoto(pool: Pool, input: PhotoFactoryInput) {
+  const photoId = randomUUID();
+
+  await pool.query(
+    `
+    INSERT INTO user_photos (id, user_id, url, sort_order)
+    VALUES ($1, $2, $3, $4)
+    `,
+    [
+      photoId,
+      input.userId,
+      input.url ?? `https://example.com/${photoId}.jpg`,
+      input.sortOrder ?? 0
+    ]
+  );
+
+  return { photoId };
+}
+
+export async function createLocation(pool: Pool, input: LocationFactoryInput) {
+  await pool.query(
+    `
+    INSERT INTO user_locations (user_id, location)
+    VALUES ($1, ST_MakePoint($2, $3)::geography)
+    ON CONFLICT (user_id)
+    DO UPDATE SET location = EXCLUDED.location, updated_at = now()
+    `,
+    [input.userId, input.lng, input.lat]
+  );
 }
