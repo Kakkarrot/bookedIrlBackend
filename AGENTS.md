@@ -26,6 +26,11 @@
 - Accepting a booking creates the chat; direct chat creation is no longer part of the contract.
 - `GET /chats` and `GET /users/:userId/chats` should return render-ready chat summaries, including minimal `other_user` preview data and unread counts.
 - `POST /chats/:id/messages` returns the created message DTO so clients can append locally without refetching the whole thread.
+- Push notifications groundwork:
+  - `POST /push/register` stores the authenticated user's iOS APNs device token and sandbox/production environment.
+  - New booking requests trigger a best-effort APNs push to the seller after the booking commit succeeds.
+  - Push delivery must never block or fail the booking write path; log failures and continue.
+  - APNs payload badge count currently represents the seller's count of `requested` bookings.
 - User photos update: `POST /users/photos` replaces the authenticated user's photo URLs (max 6).
 - Photo uploads: `POST /uploads/photos/sign` returns signed upload URLs and public URLs for direct-to-storage uploads.
 - Photo deletions: `POST /uploads/photos/delete` deletes stored photos by path or public URL.

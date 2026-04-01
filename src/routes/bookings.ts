@@ -4,6 +4,7 @@ import { randomUUID } from "crypto";
 import type { Pool } from "pg";
 import { requireUser } from "../lib/auth";
 import { logRequestEvent } from "../lib/logging";
+import { sendBookingRequestedPush } from "../lib/push";
 
 const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
 const timeOfDayValues = ["morning", "afternoon", "evening", "night"] as const;
@@ -212,6 +213,15 @@ export async function bookingRoutes(app: FastifyInstance) {
       }
 
       const bookingId = randomUUID();
+      const buyerResult = await client.query<{ buyer_display_name: string }>(
+        `
+        SELECT COALESCE(display_name, username, email, 'Someone') AS buyer_display_name
+        FROM users
+        WHERE id = $1
+        `,
+        [auth.userId]
+      );
+      const buyerDisplayName = buyerResult.rows[0]?.buyer_display_name ?? "Someone";
       await client.query(
         `
         INSERT INTO bookings (
@@ -244,6 +254,14 @@ export async function bookingRoutes(app: FastifyInstance) {
         seller_user_id: service.user_id,
         service_id: payload.serviceId
       });
+
+      void sendBookingRequestedPush(db, request.log, {
+        bookingId,
+        sellerUserId: service.user_id,
+        buyerDisplayName,
+        serviceTitle: service.title
+      });
+
       reply.code(201).send({ id: bookingId });
     } catch (error) {
       await client.query("ROLLBACK");

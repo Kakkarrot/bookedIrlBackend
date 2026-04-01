@@ -8,6 +8,7 @@ import { userRoutes } from "./routes/users";
 import { serviceRoutes } from "./routes/services";
 import { bookingRoutes } from "./routes/bookings";
 import { chatRoutes } from "./routes/chats";
+import { pushRoutes } from "./routes/push";
 import { apiVersion } from "./config/apiVersion";
 import { openapiRoutes } from "./routes/openapi";
 import { headlineRoutes } from "./routes/headlines";
@@ -57,6 +58,7 @@ export function buildServer(options: BuildServerOptions = {}) {
   app.register(serviceRoutes);
   app.register(bookingRoutes);
   app.register(chatRoutes);
+  app.register(pushRoutes);
   app.register(openapiRoutes);
   app.register(headlineRoutes);
   app.register(uploadRoutes);

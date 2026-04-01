@@ -108,6 +108,16 @@ CREATE TABLE IF NOT EXISTS chat_reads (
   PRIMARY KEY (chat_id, user_id)
 );
 
+CREATE TABLE IF NOT EXISTS push_device_tokens (
+  id uuid PRIMARY KEY,
+  user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  device_token text NOT NULL UNIQUE,
+  platform text NOT NULL CHECK (platform IN ('ios')),
+  environment text NOT NULL CHECK (environment IN ('development', 'production')),
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
 CREATE INDEX IF NOT EXISTS services_user_id_idx ON services(user_id);
 CREATE INDEX IF NOT EXISTS user_photos_user_id_idx ON user_photos(user_id);
 CREATE INDEX IF NOT EXISTS user_social_links_user_id_idx ON user_social_links(user_id);
@@ -124,4 +134,5 @@ CREATE UNIQUE INDEX IF NOT EXISTS chats_participants_service_idx ON chats(buyer_
 CREATE UNIQUE INDEX IF NOT EXISTS chats_participants_pair_idx ON chats(participant_a, participant_b) WHERE participant_a IS NOT NULL AND participant_b IS NOT NULL;
 CREATE INDEX IF NOT EXISTS messages_chat_id_idx ON messages(chat_id);
 CREATE INDEX IF NOT EXISTS chat_reads_user_id_idx ON chat_reads(user_id);
+CREATE INDEX IF NOT EXISTS push_device_tokens_user_id_idx ON push_device_tokens(user_id);
 CREATE INDEX IF NOT EXISTS user_locations_gix ON user_locations USING GIST(location);

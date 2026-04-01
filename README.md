@@ -47,6 +47,8 @@ The OpenAPI spec is served at `GET /openapi.yaml` for client generation.
 - Accepting a booking creates the chat; `POST /bookings/:bookingId/chat` only works for accepted bookings.
 - Bookings are the source of truth for the iOS bookings inbox (the tab previously named notifications).
 - List bookings inbox: `GET /bookings` returns booking summaries for services owned by the authenticated user, including minimal buyer profile info for rendering (supports `limit`/`offset`).
+- Push registration: `POST /push/register` stores the authenticated user's iOS APNs device token.
+- New booking requests trigger a best-effort APNs push to the seller with the current requested-bookings badge count.
 - Chat inbox: `GET /chats` and `GET /users/:userId/chats` return render-ready chat summaries with minimal counterparty profile data (supports `limit`/`offset`).
 - Create chat from booking: `POST /bookings/:bookingId/chat` creates a chat for the booking (buyer/seller only).
 - List chat messages: `GET /chats/:id/messages` returns messages for a chat the authenticated user participates in.
@@ -113,9 +115,37 @@ psql "$DATABASE_URL" -f src/db/schema.sql
 Note: new users are created with blank profile fields. Discoverability is derived from having photos and active services.
 Profile field `headline` is the short profession string shown under the username (replaces the old `title` field).
 
+Additional schema for push delivery:
+
+```sql
+CREATE TABLE IF NOT EXISTS push_device_tokens (
+  id uuid PRIMARY KEY,
+  user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  device_token text NOT NULL UNIQUE,
+  platform text NOT NULL CHECK (platform IN ('ios')),
+  environment text NOT NULL CHECK (environment IN ('development', 'production')),
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS push_device_tokens_user_id_idx ON push_device_tokens(user_id);
+```
+
 ## Environment
 
 Copy `.env.example` to `.env` and update values.
+
+Optional APNs env vars for push delivery:
+
+```bash
+APPLE_PUSH_TEAM_ID=...
+APPLE_PUSH_KEY_ID=...
+APPLE_PUSH_BUNDLE_ID=com.bookedirl.app
+APPLE_PUSH_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----"
+# or APPLE_PUSH_PRIVATE_KEY_BASE64=...
+```
+
+If these are unset, booking creation still succeeds and the backend logs that push delivery is skipped.
 
 ## Roadmap (not in initial release)
 
