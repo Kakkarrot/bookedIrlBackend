@@ -32,6 +32,7 @@ export async function pushRoutes(app: FastifyInstance) {
     );
 
     logRequestEvent(request, "info", "push_token_registered", {
+      component: "push",
       actor_user_id: auth.userId,
       environment: payload.environment
     });

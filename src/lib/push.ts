@@ -3,6 +3,7 @@ import http2 from "node:http2";
 import type { FastifyBaseLogger } from "fastify";
 import type { Pool } from "pg";
 import { env } from "../config/env";
+import { logComponentEvent } from "./logging";
 
 type PushEnvironment = "development" | "production";
 
@@ -28,6 +29,15 @@ type ApnsConfig = {
 };
 
 const apnsConfig = buildApnsConfig();
+
+function logPushEvent(
+  logger: PushLogger,
+  level: "info" | "warn" | "error",
+  event: string,
+  context: Record<string, unknown> = {}
+) {
+  logComponentEvent(logger, level, "push", event, context);
+}
 
 function buildApnsConfig(): ApnsConfig | null {
   const privateKey =
@@ -163,7 +173,9 @@ export async function sendBookingRequestedPush(
   payload: BookingPushPayload
 ) {
   if (!apnsConfig) {
-    logger.warn({ seller_user_id: payload.sellerUserId }, "push_skipped_missing_apns_config");
+    logPushEvent(logger, "warn", "push_skipped_missing_apns_config", {
+      seller_user_id: payload.sellerUserId
+    });
     return;
   }
 
@@ -173,7 +185,9 @@ export async function sendBookingRequestedPush(
   ]);
 
   if (!deviceTokens.length) {
-    logger.info({ seller_user_id: payload.sellerUserId }, "push_skipped_no_registered_devices");
+    logPushEvent(logger, "info", "push_skipped_no_registered_devices", {
+      seller_user_id: payload.sellerUserId
+    });
     return;
   }
 
@@ -197,14 +211,11 @@ export async function sendBookingRequestedPush(
         });
 
         if (response.statusCode === 200) {
-          logger.info(
-            {
-              booking_id: payload.bookingId,
-              seller_user_id: payload.sellerUserId,
-              device_environment: deviceToken.environment
-            },
-            "push_sent_booking_requested"
-          );
+          logPushEvent(logger, "info", "push_sent_booking_requested", {
+            booking_id: payload.bookingId,
+            seller_user_id: payload.sellerUserId,
+            device_environment: deviceToken.environment
+          });
           return;
         }
 
@@ -219,24 +230,18 @@ export async function sendBookingRequestedPush(
           await deleteDeviceToken(db, deviceToken.device_token);
         }
 
-        logger.warn(
-          {
-            booking_id: payload.bookingId,
-            seller_user_id: payload.sellerUserId,
-            status_code: response.statusCode,
-            reason: reason ?? null
-          },
-          "push_send_failed_booking_requested"
-        );
+        logPushEvent(logger, "warn", "push_send_failed_booking_requested", {
+          booking_id: payload.bookingId,
+          seller_user_id: payload.sellerUserId,
+          status_code: response.statusCode,
+          reason: reason ?? null
+        });
       } catch (error) {
-        logger.error(
-          {
-            booking_id: payload.bookingId,
-            seller_user_id: payload.sellerUserId,
-            error: error instanceof Error ? error.message : String(error)
-          },
-          "push_send_errored_booking_requested"
-        );
+        logPushEvent(logger, "error", "push_send_errored_booking_requested", {
+          booking_id: payload.bookingId,
+          seller_user_id: payload.sellerUserId,
+          error: error instanceof Error ? error.message : String(error)
+        });
       }
     })
   );

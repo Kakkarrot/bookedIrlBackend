@@ -12,6 +12,7 @@
 - Keep schema drift checks focused on contract-critical columns, indexes, and extensions instead of trying to snapshot the entire database structure.
 - Keep backend bootstrap seams testable: `buildServer` may accept injected pool/auth dependencies, but production behavior should remain the default.
 - Backend logging should be structured and targeted: log write-path successes, business-rule rejections, and unexpected errors with useful IDs/context, but avoid noisy per-branch debug spam or sensitive payload dumps.
+- Keep backend logs filterable by component when a subsystem becomes operationally important. Push-related logs should carry `component: "push"` in addition to their `event`.
 - OpenAPI spec is `openapi.yaml` and served at `GET /openapi.yaml` for client generation.
 - All API requests must send `X-API-Version` matching `openapi.yaml` `info.version`; mismatches return `426`.
 - Build: `npm run build` runs `tsc`.

@@ -23,6 +23,11 @@ The canonical OpenAPI spec lives at `openapi.yaml`.
 
 All API requests must include `X-API-Version` matching `openapi.yaml` `info.version`. Mismatches return `426`.
 
+## Logging
+
+- Request-scoped business events are structured with `event`.
+- Push logs now also include `component: "push"` so Render filtering can isolate token registration and APNs send behavior quickly.
+
 The OpenAPI spec is served at `GET /openapi.yaml` for client generation.
 
 ## Features
