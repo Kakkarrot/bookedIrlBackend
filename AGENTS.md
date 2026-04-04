@@ -7,6 +7,7 @@
 - Favor small, composable modules and explicit types over clever abstractions.
 - Keep environment config validated and fail fast on misconfiguration.
 - After adding any feature, update this file and `README.md` with the new capability details.
+- The shared roadmap lives at `/Users/willieli/bookedIrl/ROADMAP.md`. After every feature change, update that roadmap to mark completed work or add newly discovered feature work.
 - Integration tests run the real Fastify app in-process with `app.inject()`, a disposable PostGIS-backed Postgres container via `testcontainers`, and a locally injected auth verifier instead of live Firebase.
 - Keep schema drift checks focused on contract-critical columns, indexes, and extensions instead of trying to snapshot the entire database structure.
 - Keep backend bootstrap seams testable: `buildServer` may accept injected pool/auth dependencies, but production behavior should remain the default.
