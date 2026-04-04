@@ -125,6 +125,57 @@ test("POST /bookings rejects duplicate open bookings between the same buyer and 
   }
 });
 
+test("POST /bookings returns cannot_book_own_service before generic availability errors", async () => {
+  const tokenToUid = new Map([["seller-token", "seller-firebase-uid"]]);
+
+  const testApp = await createTestApp({
+    tokenVerifier: async (token: string) => {
+      const uid = tokenToUid.get(token);
+      if (!uid) {
+        throw new Error("invalid_token");
+      }
+
+      return buildDecodedToken({
+        uid,
+        sub: uid,
+        email: `${uid}@example.com`
+      });
+    }
+  });
+
+  try {
+    const seller = await createUserWithIdentity(testApp.pool, {
+      uid: "seller-firebase-uid",
+      email: "seller@example.com",
+      username: "seller"
+    });
+    const service = await createService(testApp.pool, {
+      userId: seller.userId,
+      title: "Inactive Self Service",
+      isActive: false
+    });
+
+    const response = await testApp.app.inject({
+      method: "POST",
+      url: "/bookings",
+      headers: {
+        authorization: "Bearer seller-token",
+        "x-api-version": testApp.apiVersion
+      },
+      payload: {
+        serviceId: service.serviceId,
+        requestedDate: "2026-04-30",
+        timeOfDay: "morning"
+      }
+    });
+
+    assert.equal(response.statusCode, 400);
+    assert.deepEqual(response.json(), { error: "cannot_book_own_service" });
+  } finally {
+    await testApp.close();
+  }
+});
+
 test("PATCH /bookings/:bookingId only allows the seller to accept and blocks later transitions", async () => {
   const { testApp, buyer, service } = await createBookingsTestContext();
 

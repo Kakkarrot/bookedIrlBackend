@@ -165,16 +165,6 @@ export async function bookingRoutes(app: FastifyInstance) {
         price_dollars: number;
         duration_minutes: number;
       };
-      if (!service.is_active) {
-        await client.query("ROLLBACK");
-        logRequestEvent(request, "warn", "booking_create_rejected", {
-          reason: "service_not_bookable",
-          actor_user_id: auth.userId,
-          service_id: payload.serviceId
-        });
-        reply.code(400).send({ error: "service_not_bookable" });
-        return;
-      }
 
       if (service.user_id === auth.userId) {
         await client.query("ROLLBACK");
@@ -184,6 +174,17 @@ export async function bookingRoutes(app: FastifyInstance) {
           service_id: payload.serviceId
         });
         reply.code(400).send({ error: "cannot_book_own_service" });
+        return;
+      }
+
+      if (!service.is_active) {
+        await client.query("ROLLBACK");
+        logRequestEvent(request, "warn", "booking_create_rejected", {
+          reason: "service_not_bookable",
+          actor_user_id: auth.userId,
+          service_id: payload.serviceId
+        });
+        reply.code(400).send({ error: "service_not_bookable" });
         return;
       }
 

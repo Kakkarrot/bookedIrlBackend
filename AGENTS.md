@@ -23,6 +23,7 @@
 - Bookings snapshot service title/price/duration at create time so inbox/history UI does not depend on live service rows.
 - `GET /bookings` is the single inbox read endpoint and is seller-only; do not reintroduce buyer-role list variants unless the product actually needs them.
 - Booking status is limited to `requested`, `accepted`, `declined`; only the seller may accept or decline.
+- Booking validation order matters: self-booking should return `cannot_book_own_service` before any generic service-unavailable response.
 - Accepting a booking creates the chat; direct chat creation is no longer part of the contract.
 - `GET /chats` and `GET /users/:userId/chats` should return render-ready chat summaries, including minimal `other_user` preview data and unread counts.
 - `POST /chats/:id/messages` returns the created message DTO so clients can append locally without refetching the whole thread.
