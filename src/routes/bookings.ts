@@ -5,6 +5,10 @@ import type { Pool } from "pg";
 import { requireUser } from "../lib/auth";
 import { logRequestEvent } from "../lib/logging";
 import { sendBookingRequestedPush } from "../lib/push";
+import {
+  buildBookingCreatedEvent,
+  buildBookingUpdatedEvent
+} from "../lib/realtimeEvents";
 
 const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
 const timeOfDayValues = ["morning", "afternoon", "evening", "night"] as const;
@@ -262,6 +266,19 @@ export async function bookingRoutes(app: FastifyInstance) {
         buyerDisplayName,
         serviceTitle: service.title
       });
+      void app.realtimeBroker.publish(
+        buildBookingCreatedEvent({
+          bookingId,
+          sellerUserId: service.user_id
+        })
+      ).catch((error) => {
+        request.log.error({
+          component: "realtime",
+          event: "realtime_publish_failed",
+          booking_id: bookingId,
+          error: error instanceof Error ? error.message : String(error)
+        });
+      });
 
       reply.code(201).send({ id: bookingId });
     } catch (error) {
@@ -380,6 +397,25 @@ export async function bookingRoutes(app: FastifyInstance) {
         actor_user_id: auth.userId,
         next_status: payload.status ?? null
       });
+
+      if (payload.status) {
+        void app.realtimeBroker.publish(
+          buildBookingUpdatedEvent({
+            bookingId: params.bookingId,
+            buyerUserId: booking.buyer_id,
+            sellerUserId: booking.seller_id,
+            status: payload.status
+          })
+        ).catch((error) => {
+          request.log.error({
+            component: "realtime",
+            event: "realtime_publish_failed",
+            booking_id: params.bookingId,
+            error: error instanceof Error ? error.message : String(error)
+          });
+        });
+      }
+
       reply.send({ ok: true });
     } catch (error) {
       await client.query("ROLLBACK");

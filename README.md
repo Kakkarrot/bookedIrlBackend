@@ -59,6 +59,8 @@ The OpenAPI spec is served at `GET /openapi.yaml` for client generation.
 - List bookings inbox: `GET /bookings` returns booking summaries for services owned by the authenticated user, including minimal buyer profile info for rendering (supports `limit`/`offset`).
 - Push registration: `POST /push/register` stores the authenticated user's iOS APNs device token.
 - New booking requests trigger a best-effort APNs push to the seller with the current requested-bookings badge count.
+- Realtime stream: `GET /events/stream` provides an authenticated SSE feed for live in-app events using the existing Firebase bearer token contract and `X-API-Version`.
+- Realtime bookings: successful booking create/update writes now fan out lightweight invalidation events (`booking.created`, `booking.updated`) so clients can refresh badge/inbox state without waiting for tab-level fetches.
 - Chat inbox: `GET /chats` and `GET /users/:userId/chats` return render-ready chat summaries with minimal counterparty profile data (supports `limit`/`offset`).
 - Create chat from booking: `POST /bookings/:bookingId/chat` creates a chat for the booking (buyer/seller only).
 - List chat messages: `GET /chats/:id/messages` returns messages for a chat the authenticated user participates in.
@@ -67,7 +69,7 @@ The OpenAPI spec is served at `GET /openapi.yaml` for client generation.
 - Unread counts: `GET /chats` and `GET /users/:userId/chats` include `unread_count`.
 - List services for users: `GET /services?userIds=uuid,uuid` returns active services for users who have photos and active services.
 - User photos: `GET /users/photos?userIds=uuid,uuid` returns photos only for users who have photos and active services.
-- Realtime: planned Supabase Realtime integration for live chat.
+- Realtime: backend-owned SSE stream now exists for bookings and is intended to become the shared foundation for live chat/message state as well.
 
 ## Getting started
 
@@ -113,6 +115,7 @@ Fastify request logging is enabled by default. The backend also emits structured
 - upload signing/deletion successes and failures
 
 Logging is intentionally targeted: enough context to debug request outcomes without dumping full request bodies or sensitive data.
+Realtime connection and publish failures are also logged under `component: "realtime"` so stream health is filterable independently from push.
 
 ## Database setup
 

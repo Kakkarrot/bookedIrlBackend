@@ -126,10 +126,12 @@ export async function createLightweightTestApp(
     applyTestEnv("postgresql://unused:unused@localhost:5432/unused");
 
     const { buildServer } = await import("../../src/server");
+    const { createNoopRealtimeBroker } = await import("../../src/lib/realtimeBroker");
     const { apiVersion } = await import("../../src/config/apiVersion");
 
     const app = buildServer({
       pool: createUnusedPoolStub(),
+      realtimeBroker: createNoopRealtimeBroker(),
       tokenVerifier:
         options.tokenVerifier ??
         (async (token: string) => {

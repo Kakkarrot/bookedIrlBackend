@@ -34,6 +34,11 @@
   - New booking requests trigger a best-effort APNs push to the seller after the booking commit succeeds.
   - Push delivery must never block or fail the booking write path; log failures and continue.
   - APNs payload badge count currently represents the seller's count of `requested` bookings.
+- Realtime groundwork:
+  - `GET /events/stream` is the authenticated SSE endpoint for live in-app events and uses the same Firebase bearer-token model as the rest of the backend.
+  - Realtime events should stay lightweight and invalidation-oriented; the REST endpoints remain the source of truth for full inbox/thread payloads.
+  - Booking create/update publishes domain events after commit, and chat/message events should extend the same stream instead of introducing a second realtime transport.
+  - Keep realtime logging filterable with `component: "realtime"` and avoid noisy per-message debug spam.
 - User photos update: `POST /users/photos` replaces the authenticated user's photo URLs (max 6).
 - Photo uploads: `POST /uploads/photos/sign` returns signed upload URLs and public URLs for direct-to-storage uploads.
 - Photo deletions: `POST /uploads/photos/delete` deletes stored photos by path or public URL.

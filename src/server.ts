@@ -9,6 +9,7 @@ import { serviceRoutes } from "./routes/services";
 import { bookingRoutes } from "./routes/bookings";
 import { chatRoutes } from "./routes/chats";
 import { pushRoutes } from "./routes/push";
+import { eventRoutes } from "./routes/events";
 import { apiVersion } from "./config/apiVersion";
 import { openapiRoutes } from "./routes/openapi";
 import { headlineRoutes } from "./routes/headlines";
@@ -17,19 +18,33 @@ import { ZodError } from "zod";
 import { createPool } from "./db/pool";
 import { type TokenVerifier, verifyFirebaseToken } from "./auth/firebase";
 import { logRequestEvent } from "./lib/logging";
+import { createRealtimeBroker, type RealtimeBroker } from "./lib/realtimeBroker";
 
 type BuildServerOptions = {
   pool?: Pool;
   tokenVerifier?: TokenVerifier;
+  realtimeBroker?: RealtimeBroker;
 };
 
 export function buildServer(options: BuildServerOptions = {}) {
   const app = Fastify({ logger: true });
   app.decorate("dbPool", options.pool ?? createPool());
   app.decorate("tokenVerifier", options.tokenVerifier ?? verifyFirebaseToken);
+  app.decorate(
+    "realtimeBroker",
+    options.realtimeBroker ?? createRealtimeBroker(app.dbPool, app.log)
+  );
 
   app.register(cors, { origin: true });
   app.register(helmet);
+
+  app.addHook("onReady", async () => {
+    await app.realtimeBroker.start();
+  });
+
+  app.addHook("onClose", async () => {
+    await app.realtimeBroker.stop();
+  });
 
   app.addHook("onRequest", (request, reply, done) => {
     if (request.url.startsWith("/health") || request.url.startsWith("/openapi.yaml")) {
@@ -59,6 +74,7 @@ export function buildServer(options: BuildServerOptions = {}) {
   app.register(bookingRoutes);
   app.register(chatRoutes);
   app.register(pushRoutes);
+  app.register(eventRoutes);
   app.register(openapiRoutes);
   app.register(headlineRoutes);
   app.register(uploadRoutes);
