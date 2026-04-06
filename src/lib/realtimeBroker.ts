@@ -40,10 +40,29 @@ export function createRealtimeBroker(pool: Pool, logger: FastifyBaseLogger): Rea
 
       try {
         const routedEvent = JSON.parse(message.payload) as RoutedRealtimeEvent;
+        logger.info(
+          {
+            component: "realtime",
+            event: "realtime_notification_received",
+            realtime_event_type: routedEvent.event.type,
+            recipients_count: routedEvent.recipients.length
+          },
+          "Realtime notification received from Postgres"
+        );
         for (const recipient of routedEvent.recipients) {
           const subscribers = subscribersByUserId.get(recipient);
           if (!subscribers) continue;
           for (const subscriber of subscribers.values()) {
+            logger.info(
+              {
+                component: "realtime",
+                event: "realtime_event_dispatched_to_subscriber",
+                realtime_event_type: routedEvent.event.type,
+                recipient_user_id: recipient,
+                subscriber_id: subscriber.id
+              },
+              "Realtime event dispatched to subscriber"
+            );
             subscriber.send(routedEvent.event);
           }
         }
@@ -106,6 +125,15 @@ export function createRealtimeBroker(pool: Pool, logger: FastifyBaseLogger): Rea
   }
 
   async function publish(event: RoutedRealtimeEvent) {
+    logger.info(
+      {
+        component: "realtime",
+        event: "realtime_publish_attempt",
+        realtime_event_type: event.event.type,
+        recipients_count: event.recipients.length
+      },
+      "Publishing realtime event"
+    );
     await pool.query("SELECT pg_notify($1, $2)", [channelName, JSON.stringify(event)]);
   }
 
