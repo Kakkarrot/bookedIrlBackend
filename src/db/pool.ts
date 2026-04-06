@@ -1,8 +1,16 @@
 import { Pool } from "pg";
 import { env } from "../config/env";
 
-export function createPool() {
+function createPool(connectionString: string) {
   return new Pool({
-    connectionString: env.DATABASE_URL
+    connectionString
   });
+}
+
+export function createAppPool() {
+  return createPool(env.DB_POOL_URL);
+}
+
+export function createRealtimePool() {
+  return createPool(env.DB_DIRECT_URL);
 }

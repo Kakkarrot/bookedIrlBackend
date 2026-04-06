@@ -3,6 +3,7 @@
 - Treat this file as implementation context, not just a checklist: keep it updated with the backend tech stack, core product rules, and the specific marketplace behaviors that shape API/data design.
 - Operate as a senior engineer and UX-aware builder: clean architecture, clear contracts, and pragmatic defaults.
 - Backend stack: Fastify + TypeScript (CommonJS, Node.js >= 20), Firebase Admin for auth, Supabase Postgres via `pg`, Zod for validation. Deploy backend on Render.
+- Database connection roles are now explicit: `DB_POOL_URL` is the pooled Supabase/Postgres connection for normal request/response queries, and `DB_DIRECT_URL` is reserved for the realtime broker's direct session-oriented work.
 - Prefer Postgres + clear data access boundaries; keep auth verification centralized.
 - Favor small, composable modules and explicit types over clever abstractions.
 - Keep environment config validated and fail fast on misconfiguration.

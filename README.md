@@ -122,7 +122,7 @@ Realtime connection and publish failures are also logged under `component: "real
 Apply the schema to your Supabase Postgres instance:
 
 ```bash
-psql "$DATABASE_URL" -f src/db/schema.sql
+psql "$DB_DIRECT_URL" -f src/db/schema.sql
 ```
 
 Note: new users are created with blank profile fields. Discoverability is derived from having photos and active services.
@@ -147,6 +147,16 @@ CREATE INDEX IF NOT EXISTS push_device_tokens_user_id_idx ON push_device_tokens(
 ## Environment
 
 Copy `.env.example` to `.env` and update values.
+
+Database connection roles:
+
+```bash
+DB_POOL_URL=postgresql://...@aws-...pooler.supabase.com:5432/postgres
+DB_DIRECT_URL=postgresql://...@db.<project-ref>.supabase.co:5432/postgres
+```
+
+- `DB_POOL_URL` is used for the main API's pooled request/response queries.
+- `DB_DIRECT_URL` is used for the realtime broker's direct `LISTEN` / `NOTIFY` connection path.
 
 Optional APNs env vars for push delivery:
 

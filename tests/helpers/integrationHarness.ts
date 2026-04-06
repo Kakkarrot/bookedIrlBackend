@@ -30,7 +30,8 @@ async function waitForDatabase(pool: Pool, attempts = 30, delayMs = 1000) {
 
 export function applyTestEnv(databaseUrl: string) {
   process.env.NODE_ENV = "test";
-  process.env.DATABASE_URL = databaseUrl;
+  process.env.DB_POOL_URL = databaseUrl;
+  process.env.DB_DIRECT_URL = databaseUrl;
   process.env.FIREBASE_PROJECT_ID = process.env.FIREBASE_PROJECT_ID ?? "test-project";
   process.env.FIREBASE_CLIENT_EMAIL =
     process.env.FIREBASE_CLIENT_EMAIL ?? "test@example.com";

@@ -15,24 +15,30 @@ import { openapiRoutes } from "./routes/openapi";
 import { headlineRoutes } from "./routes/headlines";
 import { uploadRoutes } from "./routes/uploads";
 import { ZodError } from "zod";
-import { createPool } from "./db/pool";
+import { createAppPool, createRealtimePool } from "./db/pool";
 import { type TokenVerifier, verifyFirebaseToken } from "./auth/firebase";
 import { logRequestEvent } from "./lib/logging";
 import { createRealtimeBroker, type RealtimeBroker } from "./lib/realtimeBroker";
 
 type BuildServerOptions = {
   pool?: Pool;
+  realtimePool?: Pool;
   tokenVerifier?: TokenVerifier;
   realtimeBroker?: RealtimeBroker;
 };
 
 export function buildServer(options: BuildServerOptions = {}) {
   const app = Fastify({ logger: true });
-  app.decorate("dbPool", options.pool ?? createPool());
+  const ownsAppPool = !options.pool;
+  const ownsRealtimePool = !options.realtimePool && !options.realtimeBroker;
+  const appPool = options.pool ?? createAppPool();
+  const realtimePool = options.realtimePool ?? options.pool ?? createRealtimePool();
+
+  app.decorate("dbPool", appPool);
   app.decorate("tokenVerifier", options.tokenVerifier ?? verifyFirebaseToken);
   app.decorate(
     "realtimeBroker",
-    options.realtimeBroker ?? createRealtimeBroker(app.dbPool, app.log)
+    options.realtimeBroker ?? createRealtimeBroker(realtimePool, app.log)
   );
 
   app.register(cors, { origin: true });
@@ -44,6 +50,12 @@ export function buildServer(options: BuildServerOptions = {}) {
 
   app.addHook("onClose", async () => {
     await app.realtimeBroker.stop();
+    if (ownsRealtimePool) {
+      await realtimePool.end();
+    }
+    if (ownsAppPool) {
+      await appPool.end();
+    }
   });
 
   app.addHook("onRequest", (request, reply, done) => {
