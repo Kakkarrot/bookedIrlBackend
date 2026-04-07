@@ -3,7 +3,7 @@
 - Treat this file as implementation context, not just a checklist: keep it updated with the backend tech stack, core product rules, and the specific marketplace behaviors that shape API/data design.
 - Operate as a senior engineer and UX-aware builder: clean architecture, clear contracts, and pragmatic defaults.
 - Backend stack: Fastify + TypeScript (CommonJS, Node.js >= 20), Firebase Admin for auth, Supabase Postgres via `pg`, Zod for validation. Deploy backend on Render.
-- Database connection roles are now explicit: `DB_POOL_URL` is the pooled Supabase/Postgres connection for normal request/response queries, and `DB_DIRECT_URL` is reserved for the realtime broker's direct session-oriented work.
+- Database connection roles are now explicit: `DB_POOL_URL` is the pooled Supabase/Postgres connection for normal request/response queries, and `DB_DIRECT_URL` is reserved for the realtime broker's session-oriented work. On Render + Supabase, that session-oriented path should use the session pooler (`:5432`) rather than the IPv6 direct host.
 - Prefer Postgres + clear data access boundaries; keep auth verification centralized.
 - Favor small, composable modules and explicit types over clever abstractions.
 - Keep environment config validated and fail fast on misconfiguration.
@@ -28,7 +28,7 @@
 - Booking status is limited to `requested`, `accepted`, `declined`; only the seller may accept or decline.
 - Booking validation order matters: self-booking should return `cannot_book_own_service` before any generic service-unavailable response.
 - Accepting a booking creates the chat; direct chat creation is no longer part of the contract.
-- `GET /chats` and `GET /users/:userId/chats` should return render-ready chat summaries, including minimal `other_user` preview data and unread counts.
+- `GET /chats` and `GET /users/:userId/chats` should return render-ready chat summaries, including minimal `other_user` preview data, unread counts, and `is_unseen` so clients can distinguish a brand-new chat from a merely unread one.
 - `POST /chats/:id/messages` returns the created message DTO so clients can append locally without refetching the whole thread.
 - Push notifications groundwork:
   - `POST /push/register` stores the authenticated user's iOS APNs device token and sandbox/production environment.
@@ -38,7 +38,7 @@
 - Realtime groundwork:
   - `GET /events/stream` is the authenticated SSE endpoint for live in-app events and uses the same Firebase bearer-token model as the rest of the backend.
   - Realtime events should stay lightweight and invalidation-oriented; the REST endpoints remain the source of truth for full inbox/thread payloads.
-  - Booking create/update publishes domain events after commit, and chat/message events should extend the same stream instead of introducing a second realtime transport.
+  - Booking create/update publishes domain events after commit, and chat/message/read-state events should extend the same stream instead of introducing a second realtime transport.
   - Keep realtime logging filterable with `component: "realtime"` and avoid noisy per-message debug spam.
 - User photos update: `POST /users/photos` replaces the authenticated user's photo URLs (max 6).
 - Photo uploads: `POST /uploads/photos/sign` returns signed upload URLs and public URLs for direct-to-storage uploads.

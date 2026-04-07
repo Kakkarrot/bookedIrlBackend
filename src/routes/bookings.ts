@@ -7,7 +7,8 @@ import { logRequestEvent } from "../lib/logging";
 import { sendBookingRequestedPush } from "../lib/push";
 import {
   buildBookingCreatedEvent,
-  buildBookingUpdatedEvent
+  buildBookingUpdatedEvent,
+  buildChatCreatedEvent
 } from "../lib/realtimeEvents";
 
 const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
@@ -362,6 +363,8 @@ export async function bookingRoutes(app: FastifyInstance) {
         }
       }
 
+      let createdChatId: string | null = null;
+
       if (payload.status) {
         await client.query(
           "UPDATE bookings SET status = $1, updated_at = now() WHERE id = $2",
@@ -381,6 +384,7 @@ export async function bookingRoutes(app: FastifyInstance) {
               "INSERT INTO chats (id, buyer_id, seller_id, participant_a, participant_b) VALUES ($1, $2, $3, $4, $5)",
               [chatId, booking.buyer_id, booking.seller_id, participantA, participantB]
             );
+            createdChatId = chatId;
             logRequestEvent(request, "info", "chat_created_from_booking_accept", {
               booking_id: params.bookingId,
               chat_id: chatId,
@@ -414,6 +418,24 @@ export async function bookingRoutes(app: FastifyInstance) {
             error: error instanceof Error ? error.message : String(error)
           });
         });
+
+        if (createdChatId) {
+          void app.realtimeBroker.publish(
+            buildChatCreatedEvent({
+              chatId: createdChatId,
+              buyerUserId: booking.buyer_id,
+              sellerUserId: booking.seller_id
+            })
+          ).catch((error) => {
+            request.log.error({
+              component: "realtime",
+              event: "realtime_publish_failed",
+              booking_id: params.bookingId,
+              chat_id: createdChatId,
+              error: error instanceof Error ? error.message : String(error)
+            });
+          });
+        }
       }
 
       reply.send({ ok: true });

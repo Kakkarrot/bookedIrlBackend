@@ -62,14 +62,16 @@ The OpenAPI spec is served at `GET /openapi.yaml` for client generation.
 - Realtime stream: `GET /events/stream` provides an authenticated SSE feed for live in-app events using the existing Firebase bearer token contract and `X-API-Version`.
 - Realtime bookings: successful booking create/update writes now fan out lightweight invalidation events (`booking.created`, `booking.updated`) so clients can refresh badge/inbox state without waiting for tab-level fetches.
 - Chat inbox: `GET /chats` and `GET /users/:userId/chats` return render-ready chat summaries with minimal counterparty profile data (supports `limit`/`offset`).
+- Chat inbox summaries now also include `is_unseen` so clients can badge a newly created chat separately from later unread messages.
 - Create chat from booking: `POST /bookings/:bookingId/chat` creates a chat for the booking (buyer/seller only).
 - List chat messages: `GET /chats/:id/messages` returns messages for a chat the authenticated user participates in.
 - Send chat message: `POST /chats/:id/messages` returns the created message record.
 - Mark chat read: `POST /chats/:id/read` updates the user's last-read timestamp for a chat.
 - Unread counts: `GET /chats` and `GET /users/:userId/chats` include `unread_count`.
+- Realtime chat events: booking acceptance chat creation, new messages, and read updates now fan out lightweight invalidation events (`chat.created`, `chat.message_created`, `chat.read_updated`) on the same SSE stream.
 - List services for users: `GET /services?userIds=uuid,uuid` returns active services for users who have photos and active services.
 - User photos: `GET /users/photos?userIds=uuid,uuid` returns photos only for users who have photos and active services.
-- Realtime: backend-owned SSE stream now exists for bookings and is intended to become the shared foundation for live chat/message state as well.
+- Realtime: backend-owned SSE now serves as the shared foundation for live bookings and chat invalidation events.
 
 ## Getting started
 
@@ -151,12 +153,13 @@ Copy `.env.example` to `.env` and update values.
 Database connection roles:
 
 ```bash
-DB_POOL_URL=postgresql://...@aws-...pooler.supabase.com:5432/postgres
-DB_DIRECT_URL=postgresql://...@db.<project-ref>.supabase.co:5432/postgres
+DB_POOL_URL=postgresql://...@aws-...pooler.supabase.com:6543/postgres
+DB_DIRECT_URL=postgresql://...@aws-...pooler.supabase.com:5432/postgres
 ```
 
 - `DB_POOL_URL` is used for the main API's pooled request/response queries.
-- `DB_DIRECT_URL` is used for the realtime broker's direct `LISTEN` / `NOTIFY` connection path.
+- `DB_DIRECT_URL` is used for the realtime broker's session-oriented `LISTEN` / `NOTIFY` connection path.
+- On Render + Supabase, prefer the Supavisor transaction pooler for `DB_POOL_URL` and the Supavisor session pooler for `DB_DIRECT_URL`; the IPv6 direct database host is not a reliable fit there.
 
 Optional APNs env vars for push delivery:
 

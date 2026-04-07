@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: BookedIRL Backend API
-  version: 0.1.8
+  version: 0.1.9
 servers:
   - url: http://localhost:4000
   - url: https://bookedirlbackend.onrender.com
@@ -984,7 +984,9 @@ components:
           nullable: true
         unread_count:
           type: integer
-      required: [id, buyer_id, seller_id, service_id, service_title, other_user, unread_count]
+        is_unseen:
+          type: boolean
+      required: [id, buyer_id, seller_id, service_id, service_title, other_user, unread_count, is_unseen]
     ChatMessage:
       type: object
       properties:

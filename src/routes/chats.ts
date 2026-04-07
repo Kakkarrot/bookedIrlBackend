@@ -4,6 +4,11 @@ import { randomUUID } from "crypto";
 import type { Pool } from "pg";
 import { requireUser } from "../lib/auth";
 import { logRequestEvent } from "../lib/logging";
+import {
+  buildChatCreatedEvent,
+  buildChatMessageCreatedEvent,
+  buildChatReadUpdatedEvent
+} from "../lib/realtimeEvents";
 
 const listMessagesSchema = z.object({
   limit: z.coerce.number().min(1).max(100).default(50)
@@ -50,6 +55,7 @@ type ChatSummaryRow = {
   last_message_sender: string | null;
   last_message_created_at: string | null;
   unread_count: string | number;
+  is_unseen: boolean;
 };
 
 async function listChatsForUser(db: Pool, userId: string, limit: number, offset: number) {
@@ -68,7 +74,8 @@ async function listChatsForUser(db: Pool, userId: string, limit: number, offset:
              lm.body AS last_message_body,
              lm.sender_id AS last_message_sender,
              lm.created_at AS last_message_created_at,
-             COALESCE(mu.unread_count, 0) AS unread_count
+             COALESCE(mu.unread_count, 0) AS unread_count,
+             (cr.user_id IS NULL) AS is_unseen
       FROM chats c
       JOIN services s ON s.id = c.service_id
       JOIN users ou
@@ -142,7 +149,8 @@ function serializeChatSummary(row: ChatSummaryRow) {
     last_message_body: row.last_message_body,
     last_message_sender: row.last_message_sender,
     last_message_created_at: row.last_message_created_at,
-    unread_count: Number(row.unread_count)
+    unread_count: Number(row.unread_count),
+    is_unseen: row.is_unseen
   };
 }
 
@@ -214,6 +222,7 @@ export async function chatRoutes(app: FastifyInstance) {
     );
 
     const message = insertResult.rows[0];
+    const participants = authorization.chat;
 
     await db.query(
       "UPDATE chats SET last_message_at = $2, updated_at = now() WHERE id = $1",
@@ -224,6 +233,23 @@ export async function chatRoutes(app: FastifyInstance) {
       chat_id: params.id,
       message_id: messageId,
       actor_user_id: auth.userId
+    });
+    void app.realtimeBroker.publish(
+      buildChatMessageCreatedEvent({
+        chatId: params.id,
+        buyerUserId: participants.buyer_id,
+        sellerUserId: participants.seller_id,
+        messageId,
+        senderUserId: auth.userId
+      })
+    ).catch((error) => {
+      request.log.error({
+        component: "realtime",
+        event: "realtime_publish_failed",
+        chat_id: params.id,
+        message_id: messageId,
+        error: error instanceof Error ? error.message : String(error)
+      });
     });
     reply.code(201).send(message);
   });
@@ -259,6 +285,20 @@ export async function chatRoutes(app: FastifyInstance) {
     logRequestEvent(request, "info", "chat_marked_read", {
       chat_id: params.id,
       actor_user_id: auth.userId
+    });
+    void app.realtimeBroker.publish(
+      buildChatReadUpdatedEvent({
+        chatId: params.id,
+        readerUserId: auth.userId
+      })
+    ).catch((error) => {
+      request.log.error({
+        component: "realtime",
+        event: "realtime_publish_failed",
+        chat_id: params.id,
+        actor_user_id: auth.userId,
+        error: error instanceof Error ? error.message : String(error)
+      });
     });
     reply.send({ ok: true });
   });
@@ -351,6 +391,21 @@ export async function chatRoutes(app: FastifyInstance) {
       booking_id: params.bookingId,
       chat_id: chatId,
       actor_user_id: auth.userId
+    });
+    void app.realtimeBroker.publish(
+      buildChatCreatedEvent({
+        chatId,
+        buyerUserId: booking.buyer_id,
+        sellerUserId: booking.seller_id
+      })
+    ).catch((error) => {
+      request.log.error({
+        component: "realtime",
+        event: "realtime_publish_failed",
+        chat_id: chatId,
+        booking_id: params.bookingId,
+        error: error instanceof Error ? error.message : String(error)
+      });
     });
     reply.code(201).send({ id: chatId });
   });
