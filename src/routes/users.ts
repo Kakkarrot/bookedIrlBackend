@@ -155,30 +155,6 @@ export async function userRoutes(app: FastifyInstance) {
 
     const baseUser = userResult.rows[0];
     const isSelf = auth.userId === params.userId;
-    if (!isSelf) {
-      const discoverableResult = await db.query(
-        `
-          SELECT EXISTS (
-            SELECT 1
-            FROM user_photos up
-            WHERE up.user_id = $1
-          ) AS has_photos,
-          EXISTS (
-            SELECT 1
-            FROM services s
-            WHERE s.user_id = $1
-              AND s.is_active = true
-          ) AS has_bookable_services
-        `,
-        [params.userId]
-      );
-
-      const { has_photos, has_bookable_services } = discoverableResult.rows[0];
-      if (!has_photos || !has_bookable_services) {
-        reply.code(404).send({ error: "user_not_found" });
-        return;
-      }
-    }
 
     const [photos, socialLinks, services] = await Promise.all([
       db.query(

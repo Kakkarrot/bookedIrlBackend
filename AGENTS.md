@@ -21,6 +21,7 @@
 - Metadata: `GET /headlines` returns the allowed headline options list.
 - Discover feed: `GET /users/nearby-qualified` is the qualified discover source and supports `limit` + `offset` pagination plus optional server-side `query` search; candidates need photos + an active service, while missing candidate locations are allowed and sorted last.
 - Service create supports optional `isActive`; if omitted, backend defaults it to `true`.
+- Discoverability only controls inclusion in discover/search surfaces. `GET /users/:userId` should return any existing user profile to authenticated clients, with private fields omitted for non-self.
 - Bookings use `requestedDate` + `timeOfDay` and are pairwise unique while status is `requested` or `accepted`.
 - The iOS tab previously called notifications is actually a bookings inbox; backend design should model that surface as bookings, not a generic notifications feed.
 - Bookings snapshot service title/price/duration at create time so inbox/history UI does not depend on live service rows.
