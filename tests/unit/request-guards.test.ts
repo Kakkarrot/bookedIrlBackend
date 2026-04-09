@@ -1,6 +1,6 @@
 import test = require("node:test");
 import * as assert from "node:assert/strict";
-import { createLightweightTestApp } from "../integration/helpers/testApp";
+import { createLightweightTestApp } from "./helpers/testApp";
 
 test("protected routes reject requests with a missing API version header", async () => {
   const testApp = await createLightweightTestApp();
