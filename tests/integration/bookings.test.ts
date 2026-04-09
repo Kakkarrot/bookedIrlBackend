@@ -327,3 +327,95 @@ test("PATCH /bookings/:bookingId creates a chat when the seller accepts the book
     await testApp.close();
   }
 });
+
+test("PATCH /bookings/:bookingId keeps chat creation idempotent after acceptance", async () => {
+  const { testApp, buyer, seller, service } = await createBookingsTestContext();
+
+  try {
+    const createResponse = await testApp.app.inject({
+      method: "POST",
+      url: "/bookings",
+      headers: {
+        authorization: "Bearer buyer-token",
+        "x-api-version": testApp.apiVersion
+      },
+      payload: {
+        serviceId: service.serviceId,
+        requestedDate: "2026-04-24",
+        timeOfDay: "morning",
+        note: "Please accept"
+      }
+    });
+
+    assert.equal(createResponse.statusCode, 201);
+    const { id: bookingId } = createResponse.json() as { id: string };
+
+    const firstAcceptResponse = await testApp.app.inject({
+      method: "PATCH",
+      url: `/bookings/${bookingId}`,
+      headers: {
+        authorization: "Bearer seller-token",
+        "x-api-version": testApp.apiVersion
+      },
+      payload: {
+        status: "accepted"
+      }
+    });
+
+    assert.equal(firstAcceptResponse.statusCode, 200);
+    assert.deepEqual(firstAcceptResponse.json(), { ok: true });
+
+    const chatsAfterFirstAccept = await testApp.pool.query(
+      `
+      SELECT id, buyer_id, seller_id, participant_a, participant_b, service_id
+      FROM chats
+      ORDER BY created_at ASC
+      `
+    );
+
+    assert.equal(chatsAfterFirstAccept.rowCount, 1);
+    const createdChat = chatsAfterFirstAccept.rows[0];
+    assert.equal(createdChat.buyer_id, buyer.userId);
+    assert.equal(createdChat.seller_id, seller.userId);
+    assert.equal(createdChat.service_id, service.serviceId);
+
+    const repeatedAcceptResponse = await testApp.app.inject({
+      method: "PATCH",
+      url: `/bookings/${bookingId}`,
+      headers: {
+        authorization: "Bearer seller-token",
+        "x-api-version": testApp.apiVersion
+      },
+      payload: {
+        status: "accepted"
+      }
+    });
+
+    assert.equal(repeatedAcceptResponse.statusCode, 400);
+    assert.deepEqual(repeatedAcceptResponse.json(), { error: "invalid_status_transition" });
+
+    const chatsAfterRepeatedAccept = await testApp.pool.query(
+      `
+      SELECT id, buyer_id, seller_id, participant_a, participant_b, service_id
+      FROM chats
+      ORDER BY created_at ASC
+      `
+    );
+
+    assert.equal(chatsAfterRepeatedAccept.rowCount, 1);
+    assert.equal(chatsAfterRepeatedAccept.rows[0].id, createdChat.id);
+    assert.equal(chatsAfterRepeatedAccept.rows[0].buyer_id, buyer.userId);
+    assert.equal(chatsAfterRepeatedAccept.rows[0].seller_id, seller.userId);
+    assert.equal(chatsAfterRepeatedAccept.rows[0].service_id, service.serviceId);
+
+    const bookingResult = await testApp.pool.query(
+      "SELECT status FROM bookings WHERE id = $1",
+      [bookingId]
+    );
+
+    assert.equal(bookingResult.rowCount, 1);
+    assert.equal(bookingResult.rows[0].status, "accepted");
+  } finally {
+    await testApp.close();
+  }
+});

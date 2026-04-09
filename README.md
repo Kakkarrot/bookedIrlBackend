@@ -88,7 +88,7 @@ For local pre-build verification, run:
 npm run build:local
 ```
 
-This keeps Docker-backed integration separate from hosted builds while still giving local development a one-command full verification path.
+This keeps Docker-backed integration separate from hosted builds while still giving local development a one-command full verification path: build first, then integration.
 
 ## Integration tests
 

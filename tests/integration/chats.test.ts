@@ -6,7 +6,8 @@ import { createService, createUserWithIdentity } from "./helpers/factories";
 async function createChatsTestContext() {
   const tokenToUid = new Map([
     ["buyer-token", "buyer-firebase-uid"],
-    ["seller-token", "seller-firebase-uid"]
+    ["seller-token", "seller-firebase-uid"],
+    ["outsider-token", "outsider-firebase-uid"]
   ]);
 
   const testApp = await createTestApp({
@@ -40,6 +41,11 @@ async function createChatsTestContext() {
     priceDollars: 175,
     durationMinutes: 90,
     isActive: true
+  });
+  const outsider = await createUserWithIdentity(testApp.pool, {
+    uid: "outsider-firebase-uid",
+    email: "outsider@example.com",
+    username: "outsider"
   });
 
   const createResponse = await testApp.app.inject({
@@ -84,6 +90,7 @@ async function createChatsTestContext() {
     testApp,
     buyer,
     seller,
+    outsider,
     chatId: chatResult.rows[0].id
   };
 }
@@ -212,6 +219,59 @@ test("GET /chats reflects unread message counts for the other participant only",
     assert.equal(buyerChats[0].unread_count, 0);
     assert.equal(buyerChats[0].is_unseen, true);
     assert.equal(buyerChats[0].last_message_body, "Hello from the buyer");
+  } finally {
+    await testApp.close();
+  }
+});
+
+test("POST /chats/:id/messages rejects non-participants", async () => {
+  const { testApp, chatId } = await createChatsTestContext();
+
+  try {
+    const response = await testApp.app.inject({
+      method: "POST",
+      url: `/chats/${chatId}/messages`,
+      headers: {
+        authorization: "Bearer outsider-token",
+        "x-api-version": testApp.apiVersion
+      },
+      payload: {
+        body: "I should not be allowed in this chat"
+      }
+    });
+
+    assert.equal(response.statusCode, 403);
+    assert.deepEqual(response.json(), { error: "forbidden" });
+
+    const messagesResult = await testApp.pool.query(
+      "SELECT id FROM messages WHERE chat_id = $1",
+      [chatId]
+    );
+
+    assert.equal(messagesResult.rowCount, 0);
+  } finally {
+    await testApp.close();
+  }
+});
+
+test("POST /chats/:id/messages rejects missing chats", async () => {
+  const { testApp } = await createChatsTestContext();
+
+  try {
+    const response = await testApp.app.inject({
+      method: "POST",
+      url: "/chats/00000000-0000-0000-0000-000000000000/messages",
+      headers: {
+        authorization: "Bearer buyer-token",
+        "x-api-version": testApp.apiVersion
+      },
+      payload: {
+        body: "This chat does not exist"
+      }
+    });
+
+    assert.equal(response.statusCode, 404);
+    assert.deepEqual(response.json(), { error: "chat_not_found" });
   } finally {
     await testApp.close();
   }

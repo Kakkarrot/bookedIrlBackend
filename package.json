@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "npm run test:unit && tsc",
-    "build:local": "npm run test:integration && npm run build",
+    "build:local": "npm run build && npm run test:integration",
     "start": "node dist/index.js",
     "test:unit": "node --import tsx --test tests/unit/**/*.test.ts",
     "test:integration": "node --import tsx --test tests/integration/index.test.ts",
