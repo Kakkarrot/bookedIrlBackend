@@ -75,7 +75,7 @@ async function listChatsForUser(db: Pool, userId: string, limit: number, offset:
              lm.sender_id AS last_message_sender,
              lm.created_at AS last_message_created_at,
              COALESCE(mu.unread_count, 0) AS unread_count,
-             (cr.user_id IS NULL) AS is_unseen
+             (cr.last_read_at IS NULL) AS is_unseen
       FROM chats c
       JOIN services s ON s.id = c.service_id
       JOIN users ou
@@ -106,7 +106,6 @@ async function listChatsForUser(db: Pool, userId: string, limit: number, offset:
           AND (cr.last_read_at IS NULL OR m.created_at > cr.last_read_at)
       ) mu ON true
       WHERE c.buyer_id = $1 OR c.seller_id = $1
-      GROUP BY c.id, s.title, ou.id, ou.display_name, ou.username, op.url, lm.body, lm.sender_id, lm.created_at, cr.last_read_at, mu.unread_count
       ORDER BY c.last_message_at DESC NULLS LAST
       LIMIT $2 OFFSET $3
     `,

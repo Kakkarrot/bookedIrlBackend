@@ -16,6 +16,12 @@ type BookingPushPayload = {
   serviceTitle: string;
 };
 
+export type BookingPushSender = (
+  db: Pool,
+  logger: PushLogger,
+  payload: BookingPushPayload
+) => Promise<void>;
+
 type PushTokenRow = {
   device_token: string;
   environment: PushEnvironment;
@@ -167,11 +173,11 @@ export function isPushNotificationsConfigured() {
   return apnsConfig !== null;
 }
 
-export async function sendBookingRequestedPush(
+export const sendBookingRequestedPush: BookingPushSender = async (
   db: Pool,
   logger: PushLogger,
   payload: BookingPushPayload
-) {
+) => {
   if (!apnsConfig) {
     logPushEvent(logger, "warn", "push_skipped_missing_apns_config", {
       seller_user_id: payload.sellerUserId
@@ -245,4 +251,4 @@ export async function sendBookingRequestedPush(
       }
     })
   );
-}
+};

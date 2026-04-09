@@ -35,7 +35,7 @@ export type ClientRealtimeEvent =
         chat_id: string;
         reader_user_id: string;
       };
-    };
+    }
   | {
       id: string;
       type: "booking.updated";

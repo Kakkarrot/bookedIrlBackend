@@ -23,6 +23,32 @@ const templateDatabase = "booked_irl_template";
 
 let runtimePromise: Promise<IntegrationRuntime> | null = null;
 
+async function waitForNoDatabaseConnections(
+  adminPool: Pool,
+  databaseName: string,
+  attempts = 50,
+  delayMs = 100
+) {
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    const result = await adminPool.query<{ active_connections: string }>(
+      `
+      SELECT COUNT(*)::text AS active_connections
+      FROM pg_stat_activity
+      WHERE datname = $1 AND pid <> pg_backend_pid()
+      `,
+      [databaseName]
+    );
+
+    if (Number(result.rows[0]?.active_connections ?? "0") === 0) {
+      return;
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, delayMs));
+  }
+
+  throw new Error(`isolated_test_database_did_not_quiesce:${databaseName}`);
+}
+
 async function waitForDatabase(pool: Pool, attempts = 30, delayMs = 1000) {
   let lastError: unknown;
 
@@ -128,7 +154,7 @@ async function createIntegrationRuntime(): Promise<IntegrationRuntime> {
       });
       const realtimePool = new Pool({
         connectionString: databaseUrl,
-        max: 1,
+        max: 2,
         allowExitOnIdle: true
       });
 
@@ -145,14 +171,7 @@ async function createIntegrationRuntime(): Promise<IntegrationRuntime> {
           isClosed = true;
 
           await Promise.all([realtimePool.end(), pool.end()]);
-          await adminPool.query(
-            `
-            SELECT pg_terminate_backend(pid)
-            FROM pg_stat_activity
-            WHERE datname = $1 AND pid <> pg_backend_pid()
-            `,
-            [databaseName]
-          );
+          await waitForNoDatabaseConnections(adminPool, databaseName);
           await adminPool.query(`DROP DATABASE IF EXISTS ${databaseName}`);
         }
       };

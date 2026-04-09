@@ -2,6 +2,7 @@ import test = require("node:test");
 import * as assert from "node:assert/strict";
 import { createTestApp, buildDecodedToken } from "./helpers/testApp";
 import { createService, createUserWithIdentity } from "./helpers/factories";
+import { createLiveServerHarness } from "./helpers/liveServer";
 
 function parseSseBlock(block: string) {
   const lines = block.split("\n").filter(Boolean);
@@ -31,6 +32,20 @@ async function readNextEvent(
   const block = state.buffer.slice(0, separatorIndex);
   state.buffer = state.buffer.slice(separatorIndex + 2);
   return parseSseBlock(block);
+}
+
+async function waitForEvent(
+  reader: ReadableStreamDefaultReader<Uint8Array>,
+  decoder: TextDecoder,
+  state: { buffer: string },
+  expectedEvent: string
+) {
+  while (true) {
+    const event = await readNextEvent(reader, decoder, state);
+    if (event.event === expectedEvent) {
+      return event;
+    }
+  }
 }
 
 test("GET /events/stream delivers booking create and update events to the affected users", async () => {
@@ -78,40 +93,23 @@ test("GET /events/stream delivers booking create and update events to the affect
     isActive: true
   });
 
-  const address = await testApp.app.listen({ port: 0, host: "127.0.0.1" });
+  let sellerReader: ReadableStreamDefaultReader<Uint8Array> | null = null;
+  let buyerReader: ReadableStreamDefaultReader<Uint8Array> | null = null;
+  let otherReader: ReadableStreamDefaultReader<Uint8Array> | null = null;
+  const liveServer = await createLiveServerHarness(testApp.app);
+  let sellerStream: Awaited<ReturnType<typeof liveServer.openEventStream>> | null = null;
+  let buyerStream: Awaited<ReturnType<typeof liveServer.openEventStream>> | null = null;
+  let otherStream: Awaited<ReturnType<typeof liveServer.openEventStream>> | null = null;
 
   try {
-    const sellerResponse = await fetch(`${address}/events/stream`, {
-      headers: {
-        authorization: "Bearer seller-token",
-        "x-api-version": testApp.apiVersion
-      }
-    });
-    assert.equal(sellerResponse.status, 200);
-    assert.ok(sellerResponse.body);
-
-    const buyerResponse = await fetch(`${address}/events/stream`, {
-      headers: {
-        authorization: "Bearer buyer-token",
-        "x-api-version": testApp.apiVersion
-      }
-    });
-    assert.equal(buyerResponse.status, 200);
-    assert.ok(buyerResponse.body);
-
-    const otherResponse = await fetch(`${address}/events/stream`, {
-      headers: {
-        authorization: "Bearer other-token",
-        "x-api-version": testApp.apiVersion
-      }
-    });
-    assert.equal(otherResponse.status, 200);
-    assert.ok(otherResponse.body);
+    sellerStream = await liveServer.openEventStream("seller-token", testApp.apiVersion);
+    buyerStream = await liveServer.openEventStream("buyer-token", testApp.apiVersion);
+    otherStream = await liveServer.openEventStream("other-token", testApp.apiVersion);
 
     const decoder = new TextDecoder();
-    const sellerReader = sellerResponse.body!.getReader();
-    const buyerReader = buyerResponse.body!.getReader();
-    const otherReader = otherResponse.body!.getReader();
+    sellerReader = sellerStream.reader;
+    buyerReader = buyerStream.reader;
+    otherReader = otherStream.reader;
     const sellerState = { buffer: "" };
     const buyerState = { buffer: "" };
     const otherState = { buffer: "" };
@@ -138,7 +136,12 @@ test("GET /events/stream delivers booking create and update events to the affect
     assert.equal(createResponse.statusCode, 201);
     const { id: bookingId } = createResponse.json() as { id: string };
 
-    const sellerCreateEvent = await readNextEvent(sellerReader, decoder, sellerState);
+    const sellerCreateEvent = await waitForEvent(
+      sellerReader,
+      decoder,
+      sellerState,
+      "booking.created"
+    );
     assert.equal(sellerCreateEvent.event, "booking.created");
     assert.deepEqual(sellerCreateEvent.data.data, { booking_id: bookingId });
 
@@ -156,8 +159,18 @@ test("GET /events/stream delivers booking create and update events to the affect
 
     assert.equal(acceptResponse.statusCode, 200);
 
-    const sellerUpdateEvent = await readNextEvent(sellerReader, decoder, sellerState);
-    const buyerUpdateEvent = await readNextEvent(buyerReader, decoder, buyerState);
+    const sellerUpdateEvent = await waitForEvent(
+      sellerReader,
+      decoder,
+      sellerState,
+      "booking.updated"
+    );
+    const buyerUpdateEvent = await waitForEvent(
+      buyerReader,
+      decoder,
+      buyerState,
+      "booking.updated"
+    );
 
     assert.equal(sellerUpdateEvent.event, "booking.updated");
     assert.deepEqual(sellerUpdateEvent.data.data, {
@@ -170,10 +183,13 @@ test("GET /events/stream delivers booking create and update events to the affect
       status: "accepted"
     });
 
-    otherReader.cancel();
-    buyerReader.cancel();
-    sellerReader.cancel();
   } finally {
+    await Promise.allSettled([
+      otherStream?.close(),
+      buyerStream?.close(),
+      sellerStream?.close()
+    ]);
+    await liveServer.close();
     await testApp.close();
   }
 });

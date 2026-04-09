@@ -98,6 +98,8 @@ export async function createTestApp(options: CreateTestAppOptions = {}): Promise
       },
       pool: harness.pool,
       close: async () => {
+        app.server.closeIdleConnections?.();
+        app.server.closeAllConnections?.();
         await app.close();
         await harness.close();
         outputCapture.restore();

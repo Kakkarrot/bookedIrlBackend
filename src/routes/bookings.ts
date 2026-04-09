@@ -4,7 +4,6 @@ import { randomUUID } from "crypto";
 import type { Pool } from "pg";
 import { requireUser } from "../lib/auth";
 import { logRequestEvent } from "../lib/logging";
-import { sendBookingRequestedPush } from "../lib/push";
 import {
   buildBookingCreatedEvent,
   buildBookingUpdatedEvent,
@@ -261,7 +260,7 @@ export async function bookingRoutes(app: FastifyInstance) {
         service_id: payload.serviceId
       });
 
-      void sendBookingRequestedPush(db, request.log, {
+      void app.bookingPushSender(db, request.log, {
         bookingId,
         sellerUserId: service.user_id,
         buyerDisplayName,
@@ -381,8 +380,18 @@ export async function bookingRoutes(app: FastifyInstance) {
           if (!existingChat.rowCount) {
             const chatId = randomUUID();
             await client.query(
-              "INSERT INTO chats (id, buyer_id, seller_id, participant_a, participant_b) VALUES ($1, $2, $3, $4, $5)",
-              [chatId, booking.buyer_id, booking.seller_id, participantA, participantB]
+              `
+              INSERT INTO chats (id, buyer_id, seller_id, participant_a, participant_b, service_id)
+              VALUES ($1, $2, $3, $4, $5, $6)
+              `,
+              [
+                chatId,
+                booking.buyer_id,
+                booking.seller_id,
+                participantA,
+                participantB,
+                booking.service_id
+              ]
             );
             createdChatId = chatId;
             logRequestEvent(request, "info", "chat_created_from_booking_accept", {

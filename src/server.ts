@@ -19,23 +19,27 @@ import { createAppPool, createRealtimePool } from "./db/pool";
 import { type TokenVerifier, verifyFirebaseToken } from "./auth/firebase";
 import { logRequestEvent } from "./lib/logging";
 import { createRealtimeBroker, type RealtimeBroker } from "./lib/realtimeBroker";
+import { sendBookingRequestedPush, type BookingPushSender } from "./lib/push";
 
 type BuildServerOptions = {
   pool?: Pool;
   realtimePool?: Pool;
   tokenVerifier?: TokenVerifier;
   realtimeBroker?: RealtimeBroker;
+  bookingPushSender?: BookingPushSender;
 };
 
 export function buildServer(options: BuildServerOptions = {}) {
   const app = Fastify({ logger: true });
-  const ownsAppPool = !options.pool;
-  const ownsRealtimePool = !options.realtimePool && !options.realtimeBroker;
   const appPool = options.pool ?? createAppPool();
   const realtimePool = options.realtimePool ?? options.pool ?? createRealtimePool();
+  const ownsAppPool = !options.pool;
+  const ownsRealtimePool =
+    !options.realtimeBroker && !options.realtimePool && !options.pool;
 
   app.decorate("dbPool", appPool);
   app.decorate("tokenVerifier", options.tokenVerifier ?? verifyFirebaseToken);
+  app.decorate("bookingPushSender", options.bookingPushSender ?? sendBookingRequestedPush);
   app.decorate(
     "realtimeBroker",
     options.realtimeBroker ?? createRealtimeBroker(realtimePool, app.log)
