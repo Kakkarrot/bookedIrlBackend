@@ -1,5 +1,5 @@
 import fs from "node:fs";
-import path from "node:path";
+import * as path from "node:path";
 
 function readOpenApiVersion(): string | null {
   const specPath = path.resolve(process.cwd(), "openapi.yaml");

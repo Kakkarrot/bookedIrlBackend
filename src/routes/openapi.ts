@@ -1,6 +1,6 @@
 import { FastifyInstance } from "fastify";
 import fs from "node:fs";
-import path from "node:path";
+import * as path from "node:path";
 
 export async function openapiRoutes(app: FastifyInstance) {
   app.get("/openapi.yaml", async (_request, reply) => {
