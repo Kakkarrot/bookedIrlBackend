@@ -1,46 +1,96 @@
-# AGENTS Reference
+# Backend AGENTS
 
-- Treat this file as implementation context, not just a checklist: keep it updated with the backend tech stack, core product rules, and the specific marketplace behaviors that shape API/data design.
-- Operate as a senior engineer and UX-aware builder: clean architecture, clear contracts, and pragmatic defaults.
-- Backend stack: Fastify + TypeScript (CommonJS, Node.js >= 20), Firebase Admin for auth, Supabase Postgres via `pg`, Zod for validation. Deploy backend on Render.
-- Database connection roles are now explicit: `DB_POOL_URL` is the pooled Supabase/Postgres connection for normal request/response queries, and `DB_DIRECT_URL` is reserved for the realtime broker's session-oriented work. On Render + Supabase, that session-oriented path should use the session pooler (`:5432`) rather than the IPv6 direct host.
-- Prefer Postgres + clear data access boundaries; keep auth verification centralized.
-- Favor small, composable modules and explicit types over clever abstractions.
-- Keep environment config validated and fail fast on misconfiguration.
-- After adding any feature, update this file and `README.md` with the new capability details.
-- The shared roadmap lives at `/Users/willieli/bookedIrl/ROADMAP.md`. After every feature change, update that roadmap to mark completed work or add newly discovered feature work.
-- Integration tests run the real Fastify app in-process with `app.inject()`, a disposable PostGIS-backed Postgres container via `testcontainers`, and a locally injected auth verifier instead of live Firebase.
-- Keep schema drift checks focused on contract-critical columns, indexes, and extensions instead of trying to snapshot the entire database structure.
-- Keep backend bootstrap seams testable: `buildServer` may accept injected pool/auth dependencies, but production behavior should remain the default.
-- Backend logging should be structured and targeted: log write-path successes, business-rule rejections, and unexpected errors with useful IDs/context, but avoid noisy per-branch debug spam or sensitive payload dumps.
-- Keep backend logs filterable by component when a subsystem becomes operationally important. Push-related logs should carry `component: "push"` in addition to their `event`.
-- OpenAPI spec is `openapi.yaml` and served at `GET /openapi.yaml` for client generation.
-- All API requests must send `X-API-Version` matching `openapi.yaml` `info.version`; mismatches return `426`.
-- Build: `npm run build` runs `tsc`.
-- Local pre-build verification: `npm run build:local` runs integration tests and then `tsc`; keep `npm run build` as compile-only so hosted build environments like Render are not coupled to Docker-backed local test requirements.
-- Metadata: `GET /headlines` returns the allowed headline options list.
-- Discover feed: `GET /users/nearby-qualified` is the qualified discover source and supports `limit` + `offset` pagination plus optional server-side `query` search; candidates need photos + an active service, while missing candidate locations are allowed and sorted last.
-- Service create supports optional `isActive`; if omitted, backend defaults it to `true`.
-- Discoverability only controls inclusion in discover/search surfaces. `GET /users/:userId` should return any existing user profile to authenticated clients, with private fields omitted for non-self.
-- Bookings use `requestedDate` + `timeOfDay` and are pairwise unique while status is `requested` or `accepted`.
-- The iOS tab previously called notifications is actually a bookings inbox; backend design should model that surface as bookings, not a generic notifications feed.
-- Bookings snapshot service title/price/duration at create time so inbox/history UI does not depend on live service rows.
-- `GET /bookings` is the single inbox read endpoint and is seller-only; do not reintroduce buyer-role list variants unless the product actually needs them.
-- Booking status is limited to `requested`, `accepted`, `declined`; only the seller may accept or decline.
-- Booking validation order matters: self-booking should return `cannot_book_own_service` before any generic service-unavailable response.
-- Accepting a booking creates the chat; direct chat creation is no longer part of the contract.
-- `GET /chats` and `GET /users/:userId/chats` should return render-ready chat summaries, including minimal `other_user` preview data, unread counts, and `is_unseen` so clients can distinguish a brand-new chat from a merely unread one.
-- `POST /chats/:id/messages` returns the created message DTO so clients can append locally without refetching the whole thread.
-- Push notifications groundwork:
-  - `POST /push/register` stores the authenticated user's iOS APNs device token and sandbox/production environment.
-  - New booking requests trigger a best-effort APNs push to the seller after the booking commit succeeds.
-  - Push delivery must never block or fail the booking write path; log failures and continue.
-  - APNs payload badge count currently represents the seller's count of `requested` bookings.
-- Realtime groundwork:
-  - `GET /events/stream` is the authenticated SSE endpoint for live in-app events and uses the same Firebase bearer-token model as the rest of the backend.
-  - Realtime events should stay lightweight and invalidation-oriented; the REST endpoints remain the source of truth for full inbox/thread payloads.
-  - Booking create/update publishes domain events after commit, and chat/message/read-state events should extend the same stream instead of introducing a second realtime transport.
-  - Keep realtime logging filterable with `component: "realtime"` and avoid noisy per-message debug spam.
-- User photos update: `POST /users/photos` replaces the authenticated user's photo URLs (max 6).
-- Photo uploads: `POST /uploads/photos/sign` returns signed upload URLs and public URLs for direct-to-storage uploads.
-- Photo deletions: `POST /uploads/photos/delete` deletes stored photos by path or public URL.
+## Purpose
+
+This backend is the single app-facing authority for BookedIRL.
+Clients should not bypass it for business data or realtime state.
+
+## Stack
+
+- Fastify
+- TypeScript, CommonJS, Node 20+
+- Firebase Admin for auth verification
+- Supabase Postgres via `pg`
+- Zod for validation
+- Render for deployment
+
+## Core Contracts
+
+- OpenAPI source of truth: `openapi.yaml`
+- Every request must send `X-API-Version` matching `openapi.yaml`
+- Mismatches return `426`
+- Auth source of truth is Firebase bearer tokens
+- Discoverability affects discover/search inclusion only, not direct `GET /users/:userId`
+
+## Product Rules
+
+- Discover returns only users with at least one photo and one active service
+- `GET /users/nearby-qualified` is the discover source and supports `limit`, `offset`, and optional `query`
+- Bookings are a seller inbox, not a generic notifications system
+- Bookings use `requestedDate` + `timeOfDay`
+- Only one open booking may exist per user pair while status is `requested` or `accepted`
+- Self-booking must return `cannot_book_own_service` before generic service errors
+- Only the seller may accept or decline
+- Accepting a booking creates the chat
+- Chat inbox summaries must include:
+  - `other_user`
+  - `unread_count`
+  - `is_unseen`
+
+## Realtime
+
+- Backend owns realtime through `GET /events/stream`
+- Realtime events are invalidation-oriented, not full state replication
+- Current event types:
+  - `booking.created`
+  - `booking.updated`
+  - `chat.created`
+  - `chat.message_created`
+  - `chat.read_updated`
+- REST endpoints remain the source of truth for full payloads
+
+## Push
+
+- `POST /push/register` stores iOS APNs device tokens
+- Booking-request push is best-effort only
+- Push must never block or fail booking writes
+- Push behavior should be injectable in tests so integration runs stay deterministic
+
+## Testing
+
+- `npm run build`
+  - runs lightweight unit tests, then `tsc`
+- `npm run test:unit`
+  - covers pure seams such as request/version guards and realtime event builders
+- `npm run test:integration`
+  - runs the Docker-backed integration suite through `tests/integration/index.test.ts`
+- `npm run test:integration:one`
+  - runs the Docker-backed integration debug entry through `tests/integration/debug.test.ts`
+  - requires `INTEGRATION_TARGET`, for example `INTEGRATION_TARGET=tests/integration/auth.session.test.ts`
+- Integration tests:
+  - run Fastify in-process with `app.inject()`
+  - use PostGIS via `testcontainers`
+  - use injected Firebase token verification
+  - use a single integration runner with shared suite hooks
+  - bootstrap one shared PostGIS runtime per integration run
+  - clone a fresh isolated database per test app from a template database
+  - keep setup/teardown in the harness and suite hooks, not in individual tests
+
+## Design Guidance
+
+- Prefer explicit dependencies over hidden globals
+- Prefer root-cause fixes over local patches
+- If a failure exposes the wrong ownership or lifecycle seam, fix the seam instead of masking it with retries, flags, or test-only hacks
+- A fix is not complete just because one run passes; leave the backend boundary in an intentional shape
+- Keep side effects injectable when tests need to neutralize them
+- Keep logging structured and filterable
+- Use `component` for subsystem filtering when helpful, especially:
+  - `realtime`
+  - `push`
+- Avoid noisy branch-by-branch debug logging
+
+## Files To Keep Current
+
+- Update this file when backend architecture or product rules change
+- Update `README.md` when backend capabilities or developer workflows change
+- Update `/Users/willieli/bookedIrl/ROADMAP.md` when feature status or priorities change

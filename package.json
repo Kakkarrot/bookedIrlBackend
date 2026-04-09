@@ -5,10 +5,12 @@
   "type": "commonjs",
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "tsc",
+    "build": "npm run test:unit && tsc",
     "build:local": "npm run test:integration && npm run build",
     "start": "node dist/index.js",
-    "test:integration": "node --import tsx --test tests/**/*.test.ts"
+    "test:unit": "node --import tsx --test tests/unit/**/*.test.ts",
+    "test:integration": "node --import tsx --test tests/integration/index.test.ts",
+    "test:integration:one": "node --import tsx --test tests/integration/debug.test.ts"
   },
   "engines": {
     "node": ">=20"

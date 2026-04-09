@@ -80,13 +80,15 @@ npm install
 npm run dev
 ```
 
+`npm run build` now runs the lightweight non-Docker backend unit tests and then compiles with TypeScript.
+
 For local pre-build verification, run:
 
 ```bash
 npm run build:local
 ```
 
-This keeps `npm run build` as compile-only for hosted environments while still giving local development a one-command test-then-build path.
+This keeps Docker-backed integration separate from hosted builds while still giving local development a one-command full verification path.
 
 ## Integration tests
 
@@ -98,14 +100,38 @@ Requirements:
 Run the suite with:
 
 ```bash
+npm run test:unit
 npm run test:integration
+```
+
+Run one integration file through the same shared setup with:
+
+```bash
+INTEGRATION_TARGET=tests/integration/auth.session.test.ts npm run test:integration:one
+```
+
+Current split:
+- `npm run test:unit` covers lightweight non-Docker seams such as request guards and realtime event builders.
+- `npm run test:integration` runs the in-process Fastify + disposable PostGIS container suite.
+- Integration files now live under `tests/integration`, while lightweight unit tests live under `tests/unit`.
+
+Run the full local verification path with:
+
+```bash
+npm run build:local
 ```
 
 Current setup details:
 - The disposable database is bootstrapped from `src/db/schema.sql`.
 - Tests inject a local token verifier so they stay self-contained and do not depend on live Firebase.
+- Integration infrastructure is separated from test logic:
+  - `tests/integration/index.test.ts` owns the suite-level setup/teardown hooks
+  - one shared PostGIS runtime is bootstrapped for the integration run
+  - each test app gets a fresh isolated database cloned from a schema-loaded template
+- Push delivery is injected in tests as a no-op dependency so background APNs work cannot race the shared database reset path.
 - The first smoke test covers `POST /auth/session` end to end against isolated Postgres.
 - The suite also includes a focused schema-contract test so drift in critical columns, indexes, or the PostGIS extension fails explicitly.
+- Lightweight non-Docker tests also cover request guards and realtime event builders so core contract logic can be verified even when the container harness is unavailable.
 
 ## Logging
 
