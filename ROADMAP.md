@@ -67,6 +67,12 @@
 
 ## Planned
 
+### Push
+- `POST /push/register`
+  - validate the endpoint end-to-end in TestFlight
+  - add backend integration coverage
+  - evaluate migration from direct APNs delivery to Firebase Cloud Messaging
+
 ### Test Coverage
 - add integration-style route coverage for `POST /uploads/photos/sign`
   - valid sign request
