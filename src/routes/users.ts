@@ -93,7 +93,7 @@ export async function userRoutes(app: FastifyInstance) {
     }
   }
 
-  app.get("/users/me", async (request, reply) => {
+  app.get("/user/me", async (request, reply) => {
     const auth = await requireUser(request, reply);
     if (!auth) return;
 
@@ -185,7 +185,7 @@ export async function userRoutes(app: FastifyInstance) {
     });
   });
 
-  app.post("/users", async (request, reply) => {
+  app.post("/user", async (request, reply) => {
     const auth = await requireUser(request, reply);
     if (!auth) return;
 
@@ -264,7 +264,7 @@ export async function userRoutes(app: FastifyInstance) {
     }
   });
 
-  app.post("/users/photos", async (request, reply) => {
+  app.post("/user/photos", async (request, reply) => {
     const auth = await requireUser(request, reply);
     if (!auth) return;
 
@@ -374,7 +374,7 @@ export async function userRoutes(app: FastifyInstance) {
     );
   });
 
-  app.get("/users/photos", async (request, reply) => {
+  app.get("/user/photos", async (request, reply) => {
     const auth = await requireUser(request, reply);
     if (!auth) return;
 

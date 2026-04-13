@@ -12,17 +12,17 @@
   - backend user/session establishment is implemented for the current app model
 
 ### Users
-- `GET /users/me`
+- `GET /user/me`
   - current authenticated user profile is implemented
 - `GET /users/:userId`
   - direct profile fetch is implemented
-- `POST /users`
+- `POST /user`
   - current user profile update is implemented
 - `GET /users`
   - discover-oriented user listing is implemented
-- `GET /users/photos`
+- `GET /user/photos`
   - batched public user photo fetch is implemented
-- `POST /users/photos`
+- `POST /user/photos`
   - authenticated user photo replacement is implemented
 
 ## Planned

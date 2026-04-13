@@ -44,7 +44,7 @@ paths:
                 $ref: "#/components/schemas/AuthSession"
         "401":
           description: Unauthorized
-  /users/me:
+  /user/me:
     get:
       tags: [users]
       security:
@@ -59,7 +59,7 @@ paths:
                 $ref: "#/components/schemas/UserProfile"
         "404":
           description: Not found
-  /users:
+  /user:
     post:
       tags: [users]
       security:
@@ -120,7 +120,7 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/NearbyUser"
-  /users/photos:
+  /user/photos:
     get:
       tags: [users]
       security:
