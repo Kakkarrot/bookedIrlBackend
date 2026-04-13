@@ -32,8 +32,8 @@ The OpenAPI spec is served at `GET /openapi.yaml` for client generation.
 
 ## Features
 
-- Nearby qualified users: `GET /users/nearby-qualified` returns users with at least one photo and one active (bookable) service, sorted by closest distance to the authenticated user's saved location, with users missing their own location sorted last.
-- Nearby qualified users: `GET /users/nearby-qualified` supports `limit`/`offset` pagination plus optional `query` search across profile fields and active service titles/descriptions for the discover feed.
+- Discover users: `GET /users` returns users with at least one photo and one active (bookable) service, sorted by closest distance to the authenticated user's saved location, with users missing their own location sorted last.
+- Discover users: `GET /users` supports `limit`/`offset` pagination plus optional `query` search across profile fields and active service titles/descriptions for the discover feed.
 - Auth: login/sign-up via Firebase ID tokens for Google or Apple providers.
 - User profile lookup: `GET /users/:userId` returns a user's profile, photos, social links, and services for any existing user (private fields omitted for non-self). Discoverability only affects discover/search surfaces, not direct profile fetches.
 - Profile updates: `POST /users` updates any user profile field plus photos, social links, and location for the authenticated user.

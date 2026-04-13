@@ -8,7 +8,7 @@ import {
   createUserWithIdentity
 } from "./helpers/factories";
 
-test("GET /users/nearby-qualified only returns other users with both a photo and an active service", async () => {
+test("GET /users only returns other users with both a photo and an active service", async () => {
   const tokenToUid = new Map([["viewer-token", "viewer-firebase-uid"]]);
 
   const testApp = await createTestApp({
@@ -92,7 +92,7 @@ test("GET /users/nearby-qualified only returns other users with both a photo and
 
     const response = await testApp.app.inject({
       method: "GET",
-      url: "/users/nearby-qualified?limit=10&offset=0",
+      url: "/users?limit=10&offset=0",
       headers: {
         authorization: "Bearer viewer-token",
         "x-api-version": testApp.apiVersion

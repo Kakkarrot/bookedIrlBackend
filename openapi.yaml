@@ -101,32 +101,12 @@ paths:
                 $ref: "#/components/schemas/UserProfile"
         "404":
           description: Not found
-  /users/nearby:
+  /users:
     get:
       tags: [users]
       security:
         - bearerAuth: []
-      summary: Nearby users by location
-      parameters:
-        - $ref: "#/components/parameters/Lat"
-        - $ref: "#/components/parameters/Lng"
-        - $ref: "#/components/parameters/RadiusKm"
-        - $ref: "#/components/parameters/Limit"
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/NearbyUser"
-  /users/nearby-qualified:
-    get:
-      tags: [users]
-      security:
-        - bearerAuth: []
-      summary: Nearby users with photos and active services
+      summary: Discover users
       parameters:
         - $ref: "#/components/parameters/Limit"
         - $ref: "#/components/parameters/Offset"

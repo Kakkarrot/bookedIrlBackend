@@ -54,13 +54,6 @@ const updatePhotosSchema = z.object({
   photos: z.array(z.string().url()).max(6)
 });
 
-const nearbySchema = z.object({
-  lat: z.coerce.number().min(-90).max(90),
-  lng: z.coerce.number().min(-180).max(180),
-  radiusKm: z.coerce.number().min(1).max(200).default(25),
-  limit: z.coerce.number().min(1).max(100).default(20)
-});
-
 const listPhotosSchema = z.object({
   userIds: z.string()
 });
@@ -72,7 +65,7 @@ const userIdParamsSchema = z.object({
   userId: z.string().uuid()
 });
 
-const qualifiedNearbySchema = z.object({
+const listUsersSchema = z.object({
   limit: z.coerce.number().min(1).max(100).default(20),
   offset: z.coerce.number().min(0).max(10000).default(0),
   query: z
@@ -291,65 +284,11 @@ export async function userRoutes(app: FastifyInstance) {
     }
   });
 
-  app.get("/users/nearby", async (request, reply) => {
+  app.get("/users", async (request, reply) => {
     const auth = await requireUser(request, reply);
     if (!auth) return;
 
-    const query = nearbySchema.parse(request.query);
-    const radiusMeters = query.radiusKm * 1000;
-
-    const nearbyResult = await db.query(
-      `
-        SELECT u.id,
-               u.display_name,
-               u.username,
-               u.headline,
-               u.bio,
-               ST_Distance(ul.location, ST_MakePoint($1, $2)::geography) AS distance_meters
-        FROM user_locations ul
-        JOIN users u ON u.id = ul.user_id
-        WHERE EXISTS (SELECT 1 FROM user_photos up WHERE up.user_id = u.id)
-          AND EXISTS (
-            SELECT 1
-            FROM services s
-            WHERE s.user_id = u.id
-              AND s.is_active = true
-          )
-          AND ST_DWithin(ul.location, ST_MakePoint($1, $2)::geography, $3)
-        ORDER BY distance_meters ASC
-        LIMIT $4
-      `,
-      [query.lng, query.lat, radiusMeters, query.limit]
-    );
-
-    const userIds = (nearbyResult.rows as NearbyUserRow[]).map((row) => row.id);
-    const photosResult = userIds.length
-      ? await db.query(
-          "SELECT user_id, url, sort_order FROM user_photos WHERE user_id = ANY($1::uuid[]) ORDER BY sort_order",
-          [userIds]
-        )
-      : { rows: [] as PhotoRow[] };
-
-    const photosByUser = new Map<string, PhotoRow[]>();
-    for (const row of photosResult.rows as PhotoRow[]) {
-      const list = photosByUser.get(row.user_id) ?? [];
-      list.push({ url: row.url, sort_order: row.sort_order, user_id: row.user_id });
-      photosByUser.set(row.user_id, list);
-    }
-
-    reply.send(
-      (nearbyResult.rows as NearbyUserRow[]).map((row) => ({
-        ...row,
-        photos: photosByUser.get(row.id) ?? []
-      }))
-    );
-  });
-
-  app.get("/users/nearby-qualified", async (request, reply) => {
-    const auth = await requireUser(request, reply);
-    if (!auth) return;
-
-    const query = qualifiedNearbySchema.parse(request.query);
+    const query = listUsersSchema.parse(request.query);
     const searchPattern = query.query ? `%${query.query}%` : null;
 
     const locationResult = await db.query(

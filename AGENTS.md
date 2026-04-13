@@ -25,7 +25,7 @@ Clients should not bypass it for business data or realtime state.
 ## Product Rules
 
 - Discover returns only users with at least one photo and one active service
-- `GET /users/nearby-qualified` is the discover source and supports `limit`, `offset`, and optional `query`
+- `GET /users` is the discover source and supports `limit`, `offset`, and optional `query`
 - Bookings are a seller inbox, not a generic notifications system
 - Bookings use `requestedDate` + `timeOfDay`
 - Only one open booking may exist per user pair while status is `requested` or `accepted`
