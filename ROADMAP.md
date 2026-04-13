@@ -78,6 +78,8 @@
   - evaluate migration from direct APNs delivery to Firebase Cloud Messaging
 
 ### Test Coverage
+- schema based integration tests
+  - local-vs-remote schema drift command is implemented via `npm run test:schema:drift`
 - add integration-style route coverage for `POST /uploads/photos/sign`
   - valid sign request
   - invalid content type rejection

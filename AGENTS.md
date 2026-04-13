@@ -72,6 +72,9 @@ Clients should not bypass it for business data or realtime state.
 - `npm run test:integration:one`
   - runs the Docker-backed integration debug entry through `tests/integration/debug.test.ts`
   - requires `INTEGRATION_TARGET`, for example `INTEGRATION_TARGET=tests/integration/auth.session.test.ts`
+- `npm run test:schema:drift`
+  - compares local `src/db/schema.sql` against a remote Postgres schema
+  - boots its own throwaway PostGIS runtime and should stay separate from the default integration suite
 - Integration tests:
   - run Fastify in-process with `app.inject()`
   - use PostGIS via `testcontainers`

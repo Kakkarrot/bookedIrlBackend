@@ -102,6 +102,14 @@ npm run test:unit
 npm run test:integration
 ```
 
+Run the remote drift check with:
+
+```bash
+npm run test:schema:drift
+```
+
+This command bootstraps a fresh local PostGIS database from `src/db/schema.sql`, connects to the remote database, introspects both schemas, and fails if their normalized table, column, constraint, index, or extension metadata differs. By default it uses `DB_DIRECT_URL`; set `SCHEMA_DRIFT_REMOTE_URL` to point at a different remote database for drift checks.
+
 Run one integration file through the same shared setup with:
 
 ```bash
@@ -111,6 +119,7 @@ INTEGRATION_TARGET=tests/integration/auth.session.test.ts npm run test:integrati
 Current split:
 - `npm run test:unit` covers lightweight non-Docker seams such as request guards and realtime event builders.
 - `npm run test:integration` runs the in-process Fastify + disposable PostGIS container suite.
+- `npm run test:schema:drift` compares local `src/db/schema.sql` against a remote Postgres schema using a dedicated throwaway PostGIS runtime.
 - Integration files now live under `tests/integration`, while lightweight unit tests live under `tests/unit`.
 
 Run the full local verification path with:

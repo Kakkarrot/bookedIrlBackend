@@ -8,6 +8,7 @@
     "build": "npm run test:unit && tsc",
     "build:local": "npm run build && npm run test:integration",
     "start": "node dist/index.js",
+    "test:schema:drift": "node --import tsx scripts/check-schema-drift.ts",
     "test:unit": "node --import tsx --test tests/unit/**/*.test.ts",
     "test:integration": "node --import tsx --test tests/integration/index.test.ts",
     "test:integration:one": "node --import tsx --test tests/integration/debug.test.ts"
