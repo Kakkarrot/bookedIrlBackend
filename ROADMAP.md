@@ -6,6 +6,10 @@
 - `GET /health`
   - basic health check endpoint is implemented
 
+### Metadata
+- `GET /headlines`
+  - allowed headline option listing is implemented
+
 ### Auth
 - `POST /auth/session`
   - Firebase bearer token verification is implemented
