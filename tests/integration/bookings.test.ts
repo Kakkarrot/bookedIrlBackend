@@ -1,5 +1,6 @@
 import test = require("node:test");
 import * as assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
 import { createTestApp, buildDecodedToken } from "./helpers/testApp";
 import { createService, createUserWithIdentity } from "./helpers/factories";
 
@@ -98,8 +99,8 @@ test("GET /bookings returns the seller inbox with buyer preview data", async () 
     });
 
     await testApp.pool.query(
-      "INSERT INTO user_photos (user_id, url, sort_order) VALUES ($1, $2, 0)",
-      [buyerOne.userId, "https://example.com/buyer-one.jpg"]
+      "INSERT INTO user_photos (id, user_id, url, sort_order) VALUES ($1, $2, $3, 0)",
+      [randomUUID(), buyerOne.userId, "https://example.com/buyer-one.jpg"]
     );
 
     const sellerService = await createService(testApp.pool, {
