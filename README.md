@@ -53,7 +53,7 @@ The OpenAPI spec is served at `GET /openapi.yaml` for client generation.
 - Booking anti-spam rule: only one non-declined booking may exist between a pair of users at a time; duplicates return `409 booking_already_exists`.
 - Booking validation: users cannot book their own service or an inactive service; self-booking returns `cannot_book_own_service` before generic availability errors.
 - Update booking: `PATCH /booking/:bookingId` only supports seller-side `accepted` / `declined`.
-- Accepting a booking creates the chat; `POST /bookings/:bookingId/chat` only works for accepted bookings.
+- Accepting a booking creates the chat as part of the seller accept flow.
 - Bookings are the source of truth for the iOS bookings inbox (the tab previously named notifications).
 - List bookings inbox: `GET /bookings` returns booking summaries for services owned by the authenticated user, including minimal buyer profile info for rendering (supports `limit`/`offset`).
 - Push registration: `POST /push/register` stores the authenticated user's iOS APNs device token.
@@ -62,7 +62,6 @@ The OpenAPI spec is served at `GET /openapi.yaml` for client generation.
 - Realtime bookings: successful booking create/update writes now fan out lightweight invalidation events (`booking.created`, `booking.updated`) so clients can refresh badge/inbox state without waiting for tab-level fetches.
 - Chat inbox: `GET /chats` and `GET /users/:userId/chats` return render-ready chat summaries with minimal counterparty profile data (supports `limit`/`offset`).
 - Chat inbox summaries now also include `is_unseen` so clients can badge a newly created chat separately from later unread messages.
-- Create chat from booking: `POST /bookings/:bookingId/chat` creates a chat for the booking (buyer/seller only).
 - List chat messages: `GET /chats/:id/messages` returns messages for a chat the authenticated user participates in.
 - Send chat message: `POST /chats/:id/messages` returns the created message record.
 - Mark chat read: `POST /chats/:id/read` updates the user's last-read timestamp for a chat.

@@ -31,10 +31,6 @@ const userIdParamsSchema = z.object({
   userId: z.string().uuid()
 });
 
-const bookingIdParamsSchema = z.object({
-  bookingId: z.string().uuid()
-});
-
 function canonicalPair(leftUserId: string, rightUserId: string) {
   return leftUserId < rightUserId
     ? { participantA: leftUserId, participantB: rightUserId }
@@ -320,91 +316,5 @@ export async function chatRoutes(app: FastifyInstance) {
     const result = await listChatsForUser(db, params.userId, query.limit, query.offset);
 
     reply.send(result.rows.map(serializeChatSummary));
-  });
-
-  app.post("/bookings/:bookingId/chat", async (request, reply) => {
-    const auth = await requireUser(request, reply);
-    if (!auth) return;
-
-    const params = bookingIdParamsSchema.parse(request.params);
-
-    const bookingResult = await db.query(
-      "SELECT buyer_id, seller_id, status FROM bookings WHERE id = $1",
-      [params.bookingId]
-    );
-
-    if (!bookingResult.rowCount) {
-      logRequestEvent(request, "warn", "booking_chat_create_rejected", {
-        reason: "booking_not_found",
-        actor_user_id: auth.userId,
-        booking_id: params.bookingId
-      });
-      reply.code(404).send({ error: "booking_not_found" });
-      return;
-    }
-
-    const booking = bookingResult.rows[0];
-    if (booking.buyer_id !== auth.userId && booking.seller_id !== auth.userId) {
-      logRequestEvent(request, "warn", "booking_chat_create_rejected", {
-        reason: "forbidden",
-        actor_user_id: auth.userId,
-        booking_id: params.bookingId
-      });
-      reply.code(403).send({ error: "forbidden" });
-      return;
-    }
-
-    if (booking.status !== "accepted") {
-      logRequestEvent(request, "warn", "booking_chat_create_rejected", {
-        reason: "booking_not_accepted",
-        actor_user_id: auth.userId,
-        booking_id: params.bookingId
-      });
-      reply.code(400).send({ error: "booking_not_accepted" });
-      return;
-    }
-
-    const { participantA, participantB } = canonicalPair(booking.buyer_id, booking.seller_id);
-    const existing = await db.query(
-      "SELECT id FROM chats WHERE participant_a = $1 AND participant_b = $2",
-      [participantA, participantB]
-    );
-
-    if (existing.rowCount) {
-      logRequestEvent(request, "info", "booking_chat_reused", {
-        booking_id: params.bookingId,
-        chat_id: existing.rows[0].id,
-        actor_user_id: auth.userId
-      });
-      reply.send({ id: existing.rows[0].id });
-      return;
-    }
-
-    const chatId = randomUUID();
-    await db.query(
-      "INSERT INTO chats (id, booking_id, participant_a, participant_b) VALUES ($1, $2, $3, $4)",
-      [chatId, params.bookingId, participantA, participantB]
-    );
-
-    logRequestEvent(request, "info", "booking_chat_created", {
-      booking_id: params.bookingId,
-      chat_id: chatId,
-      actor_user_id: auth.userId
-    });
-    void app.realtimeBroker.publish(
-      buildChatCreatedEvent({
-        chatId,
-        participantUserIds: [booking.buyer_id, booking.seller_id]
-      })
-    ).catch((error) => {
-      request.log.error({
-        component: "realtime",
-        event: "realtime_publish_failed",
-        chat_id: chatId,
-        booking_id: params.bookingId,
-        error: error instanceof Error ? error.message : String(error)
-      });
-    });
-    reply.code(201).send({ id: chatId });
   });
 }

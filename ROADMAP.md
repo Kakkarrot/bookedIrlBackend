@@ -49,7 +49,7 @@
 
 ### Bookings
 - `GET /bookings`
-  - seller inbox booking listing is implemented
+  - seller inbox booking listing is implemented with integration coverage
 - `POST /booking`
   - booking request creation is implemented
 - `PATCH /booking/:bookingId`

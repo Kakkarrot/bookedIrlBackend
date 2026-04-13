@@ -493,21 +493,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/OkResponse"
-  /bookings/{bookingId}/chat:
-    post:
-      tags: [chats]
-      security:
-        - bearerAuth: []
-      summary: Get or create chat for accepted booking
-      parameters:
-        - $ref: "#/components/parameters/BookingId"
-      responses:
-        "201":
-          description: Created
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/IdResponse"
 components:
   securitySchemes:
     bearerAuth:

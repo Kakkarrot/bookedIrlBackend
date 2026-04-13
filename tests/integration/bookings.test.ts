@@ -50,6 +50,156 @@ async function createBookingsTestContext() {
   };
 }
 
+test("GET /bookings returns the seller inbox with buyer preview data", async () => {
+  const tokenToUid = new Map([
+    ["seller-token", "seller-firebase-uid"],
+    ["buyer-one-token", "buyer-one-firebase-uid"],
+    ["buyer-two-token", "buyer-two-firebase-uid"],
+    ["other-seller-token", "other-seller-firebase-uid"]
+  ]);
+
+  const testApp = await createTestApp({
+    tokenVerifier: async (token: string) => {
+      const uid = tokenToUid.get(token);
+      if (!uid) {
+        throw new Error("invalid_token");
+      }
+
+      return buildDecodedToken({
+        uid,
+        sub: uid,
+        email: `${uid}@example.com`
+      });
+    }
+  });
+
+  try {
+    const seller = await createUserWithIdentity(testApp.pool, {
+      uid: "seller-firebase-uid",
+      email: "seller@example.com",
+      username: "seller"
+    });
+    const otherSeller = await createUserWithIdentity(testApp.pool, {
+      uid: "other-seller-firebase-uid",
+      email: "other-seller@example.com",
+      username: "other-seller"
+    });
+    const buyerOne = await createUserWithIdentity(testApp.pool, {
+      uid: "buyer-one-firebase-uid",
+      email: "buyer-one@example.com",
+      username: "buyer-one",
+      displayName: "Buyer One"
+    });
+    const buyerTwo = await createUserWithIdentity(testApp.pool, {
+      uid: "buyer-two-firebase-uid",
+      email: "buyer-two@example.com",
+      username: "buyer-two",
+      displayName: "Buyer Two"
+    });
+
+    await testApp.pool.query(
+      "INSERT INTO user_photos (user_id, url, sort_order) VALUES ($1, $2, 0)",
+      [buyerOne.userId, "https://example.com/buyer-one.jpg"]
+    );
+
+    const sellerService = await createService(testApp.pool, {
+      userId: seller.userId,
+      title: "Seller Service",
+      priceDollars: 175,
+      durationMinutes: 90,
+      isActive: true
+    });
+    const otherSellerService = await createService(testApp.pool, {
+      userId: otherSeller.userId,
+      title: "Other Seller Service",
+      priceDollars: 220,
+      durationMinutes: 60,
+      isActive: true
+    });
+
+    const firstCreateResponse = await testApp.app.inject({
+      method: "POST",
+      url: "/booking",
+      headers: {
+        authorization: "Bearer buyer-one-token",
+        "x-api-version": testApp.apiVersion
+      },
+      payload: {
+        serviceId: sellerService.serviceId,
+        requestedDate: "2026-04-10",
+        timeOfDay: "morning",
+        note: "First seller booking"
+      }
+    });
+
+    assert.equal(firstCreateResponse.statusCode, 201);
+
+    const secondCreateResponse = await testApp.app.inject({
+      method: "POST",
+      url: "/booking",
+      headers: {
+        authorization: "Bearer buyer-two-token",
+        "x-api-version": testApp.apiVersion
+      },
+      payload: {
+        serviceId: otherSellerService.serviceId,
+        requestedDate: "2026-04-11",
+        timeOfDay: "afternoon",
+        note: "Other seller booking"
+      }
+    });
+
+    assert.equal(secondCreateResponse.statusCode, 201);
+
+    const inboxResponse = await testApp.app.inject({
+      method: "GET",
+      url: "/bookings?limit=10&offset=0",
+      headers: {
+        authorization: "Bearer seller-token",
+        "x-api-version": testApp.apiVersion
+      }
+    });
+
+    assert.equal(inboxResponse.statusCode, 200);
+    const inbox = inboxResponse.json() as Array<{
+      buyer: {
+        id: string;
+        display_name: string | null;
+        username: string | null;
+        photo_url: string | null;
+      };
+      buyer_id: string;
+      seller_id: string;
+      service_id: string;
+      service_title: string;
+      service_price_dollars: number;
+      service_duration_minutes: number;
+      status: string;
+      requested_date: string;
+      time_of_day: string;
+      note: string | null;
+    }>;
+
+    assert.equal(inbox.length, 1, inboxResponse.body);
+    assert.equal(inbox[0].buyer_id, buyerOne.userId);
+    assert.equal(inbox[0].seller_id, seller.userId);
+    assert.equal(inbox[0].service_id, sellerService.serviceId);
+    assert.equal(inbox[0].service_title, "Seller Service");
+    assert.equal(inbox[0].service_price_dollars, 175);
+    assert.equal(inbox[0].service_duration_minutes, 90);
+    assert.equal(inbox[0].status, "requested");
+    assert.equal(inbox[0].requested_date, "2026-04-10");
+    assert.equal(inbox[0].time_of_day, "morning");
+    assert.equal(inbox[0].note, "First seller booking");
+    assert.equal(inbox[0].buyer.id, buyerOne.userId);
+    assert.equal(inbox[0].buyer.display_name, "Buyer One");
+    assert.equal(inbox[0].buyer.username, "buyer-one");
+    assert.equal(inbox[0].buyer.photo_url, "https://example.com/buyer-one.jpg");
+  } finally {
+    await testApp.close();
+  }
+});
+
 test("POST /booking rejects duplicate open bookings between the same buyer and seller", async () => {
   const { testApp, buyer, seller, service } = await createBookingsTestContext();
 
