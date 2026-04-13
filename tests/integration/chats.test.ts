@@ -224,6 +224,122 @@ test("GET /chats reflects unread message counts for the other participant only",
   }
 });
 
+test("GET /chats/:id/messages returns messages oldest-first and respects limit", async () => {
+  const { testApp, chatId, buyer, seller } = await createChatsTestContext();
+
+  try {
+    const firstMessageResponse = await testApp.app.inject({
+      method: "POST",
+      url: `/chats/${chatId}/messages`,
+      headers: {
+        authorization: "Bearer buyer-token",
+        "x-api-version": testApp.apiVersion
+      },
+      payload: {
+        body: "First message"
+      }
+    });
+
+    assert.equal(firstMessageResponse.statusCode, 201);
+
+    const secondMessageResponse = await testApp.app.inject({
+      method: "POST",
+      url: `/chats/${chatId}/messages`,
+      headers: {
+        authorization: "Bearer seller-token",
+        "x-api-version": testApp.apiVersion
+      },
+      payload: {
+        body: "Second message"
+      }
+    });
+
+    assert.equal(secondMessageResponse.statusCode, 201);
+
+    const listResponse = await testApp.app.inject({
+      method: "GET",
+      url: `/chats/${chatId}/messages?limit=1`,
+      headers: {
+        authorization: "Bearer buyer-token",
+        "x-api-version": testApp.apiVersion
+      }
+    });
+
+    assert.equal(listResponse.statusCode, 200);
+    const messages = listResponse.json() as Array<{
+      sender_id: string;
+      body: string;
+    }>;
+
+    assert.equal(messages.length, 1, listResponse.body);
+    assert.equal(messages[0].sender_id, seller.userId);
+    assert.equal(messages[0].body, "Second message");
+
+    const allMessagesResponse = await testApp.app.inject({
+      method: "GET",
+      url: `/chats/${chatId}/messages?limit=10`,
+      headers: {
+        authorization: "Bearer buyer-token",
+        "x-api-version": testApp.apiVersion
+      }
+    });
+
+    assert.equal(allMessagesResponse.statusCode, 200);
+    const allMessages = allMessagesResponse.json() as Array<{
+      sender_id: string;
+      body: string;
+    }>;
+
+    assert.equal(allMessages.length, 2, allMessagesResponse.body);
+    assert.equal(allMessages[0].sender_id, buyer.userId);
+    assert.equal(allMessages[0].body, "First message");
+    assert.equal(allMessages[1].sender_id, seller.userId);
+    assert.equal(allMessages[1].body, "Second message");
+  } finally {
+    await testApp.close();
+  }
+});
+
+test("GET /chats/:id/messages rejects non-participants", async () => {
+  const { testApp, chatId } = await createChatsTestContext();
+
+  try {
+    const response = await testApp.app.inject({
+      method: "GET",
+      url: `/chats/${chatId}/messages`,
+      headers: {
+        authorization: "Bearer outsider-token",
+        "x-api-version": testApp.apiVersion
+      }
+    });
+
+    assert.equal(response.statusCode, 403);
+    assert.deepEqual(response.json(), { error: "forbidden" });
+  } finally {
+    await testApp.close();
+  }
+});
+
+test("GET /chats/:id/messages rejects missing chats", async () => {
+  const { testApp } = await createChatsTestContext();
+
+  try {
+    const response = await testApp.app.inject({
+      method: "GET",
+      url: "/chats/00000000-0000-0000-0000-000000000000/messages",
+      headers: {
+        authorization: "Bearer buyer-token",
+        "x-api-version": testApp.apiVersion
+      }
+    });
+
+    assert.equal(response.statusCode, 404);
+    assert.deepEqual(response.json(), { error: "chat_not_found" });
+  } finally {
+    await testApp.close();
+  }
+});
+
 test("POST /chats/:id/messages rejects non-participants", async () => {
   const { testApp, chatId } = await createChatsTestContext();
 

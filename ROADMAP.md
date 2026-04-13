@@ -58,6 +58,12 @@
 ### Chats
 - `GET /chats`
   - chat inbox listing is implemented with integration coverage
+- `GET /chats/:id/messages`
+  - chat message listing is implemented with integration coverage
+- `POST /chats/:id/messages`
+  - chat message creation is implemented with integration coverage
+- `POST /chats/:id/read`
+  - chat read-state updates are implemented with integration coverage
 
 ## Planned
 
