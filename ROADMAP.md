@@ -55,6 +55,10 @@
 - `PATCH /booking/:bookingId`
   - seller-side booking acceptance / decline is implemented
 
+### Chats
+- `GET /chats`
+  - chat inbox listing is implemented with integration coverage
+
 ## Planned
 
 ### Test Coverage

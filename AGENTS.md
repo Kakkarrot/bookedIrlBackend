@@ -98,4 +98,4 @@ Clients should not bypass it for business data or realtime state.
 
 - Update this file when backend architecture or product rules change
 - Update `README.md` when backend capabilities or developer workflows change
-- Update `/Users/willieli/bookedIrl/ROADMAP.md` when feature status or priorities change
+- Update `ROADMAP.md` when backend feature status or priorities change
