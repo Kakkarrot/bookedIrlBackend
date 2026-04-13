@@ -197,28 +197,4 @@ export async function serviceRoutes(app: FastifyInstance) {
     reply.send({ ok: true });
   });
 
-  app.get("/users/:userId/services", async (request, reply) => {
-    const auth = await requireUser(request, reply);
-    if (!auth) return;
-
-    const params = userIdParamsSchema.parse(request.params);
-
-    const isSelf = params.userId === auth.userId;
-    const result = await db.query(
-      isSelf
-        ? "SELECT id, user_id, title, description, price_dollars, duration_minutes, is_active FROM services WHERE user_id = $1 ORDER BY created_at DESC"
-        : `
-          SELECT s.id, s.user_id, s.title, s.description, s.price_dollars, s.duration_minutes, s.is_active
-          FROM services s
-          WHERE s.user_id = $1
-            AND s.is_active = true
-            AND EXISTS (SELECT 1 FROM user_photos up WHERE up.user_id = s.user_id)
-            AND EXISTS (SELECT 1 FROM services s2 WHERE s2.user_id = s.user_id AND s2.is_active = true)
-          ORDER BY s.created_at DESC
-        `,
-      [params.userId]
-    );
-
-    reply.send(result.rows);
-  });
 }

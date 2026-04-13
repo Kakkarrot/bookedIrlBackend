@@ -305,27 +305,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/OkResponse"
-  /users/{userId}/services:
-    get:
-      tags: [services]
-      security:
-        - bearerAuth: []
-      summary: List services for user
-      parameters:
-        - $ref: "#/components/parameters/UserId"
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/Service"
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/IdResponse"
   /bookings:
     get:
       tags: [bookings]

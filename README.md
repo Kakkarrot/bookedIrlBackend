@@ -44,7 +44,6 @@ The OpenAPI spec is served at `GET /openapi.yaml` for client generation.
 - Onboarding intents: `POST /user` accepts `intentLooking` and `intentOffering` booleans.
 - Create service for current user: `POST /service` creates a new service for the authenticated user.
 - Service create payload supports optional `isActive` (defaults to `true` when omitted).
-- List services for user: `GET /users/:userId/services` returns services for a user (non-self requests only see active services when user has photos and active services).
 - Service detail: `GET /service/:serviceId` returns a service (owner or public if active + discoverable).
 - Update service: `PATCH /service/:serviceId` updates a service (owner only).
 - Delete service: `DELETE /service/:serviceId` deletes a service (owner only).
