@@ -400,25 +400,6 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/ChatSummary"
-  /users/{userId}/chats:
-    get:
-      tags: [chats]
-      security:
-        - bearerAuth: []
-      summary: List chats for user
-      parameters:
-        - $ref: "#/components/parameters/UserId"
-        - $ref: "#/components/parameters/Limit"
-        - $ref: "#/components/parameters/Offset"
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/ChatSummary"
   /chats/{id}/messages:
     get:
       tags: [chats]

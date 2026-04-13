@@ -27,10 +27,6 @@ const markReadSchema = z.object({
   readAt: z.string().datetime().optional()
 });
 
-const userIdParamsSchema = z.object({
-  userId: z.string().uuid()
-});
-
 function canonicalPair(leftUserId: string, rightUserId: string) {
   return leftUserId < rightUserId
     ? { participantA: leftUserId, participantB: rightUserId }
@@ -295,26 +291,5 @@ export async function chatRoutes(app: FastifyInstance) {
       });
     });
     reply.send({ ok: true });
-  });
-
-  app.get("/users/:userId/chats", async (request, reply) => {
-    const auth = await requireUser(request, reply);
-    if (!auth) return;
-
-    const params = userIdParamsSchema.parse(request.params);
-    if (params.userId !== auth.userId) {
-      logRequestEvent(request, "warn", "chat_list_rejected", {
-        reason: "forbidden",
-        actor_user_id: auth.userId,
-        requested_user_id: params.userId
-      });
-      reply.code(403).send({ error: "forbidden" });
-      return;
-    }
-
-    const query = listChatsSchema.parse(request.query);
-    const result = await listChatsForUser(db, params.userId, query.limit, query.offset);
-
-    reply.send(result.rows.map(serializeChatSummary));
   });
 }
