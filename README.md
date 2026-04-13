@@ -42,12 +42,12 @@ The OpenAPI spec is served at `GET /openapi.yaml` for client generation.
 - Photo deletions: `POST /uploads/photos/delete` deletes stored photos by path or public URL.
 - Username updates return `409 { "error": "username_taken" }` on duplicates.
 - Onboarding intents: `POST /user` accepts `intentLooking` and `intentOffering` booleans.
-- Create service for user: `POST /users/:userId/services` creates a new service for the authenticated user (userId must match).
+- Create service for current user: `POST /service` creates a new service for the authenticated user.
 - Service create payload supports optional `isActive` (defaults to `true` when omitted).
 - List services for user: `GET /users/:userId/services` returns services for a user (non-self requests only see active services when user has photos and active services).
-- Service detail: `GET /services/:serviceId` returns a service (owner or public if active + discoverable).
-- Update service: `PATCH /services/:serviceId` updates a service (owner only).
-- Delete service: `DELETE /services/:serviceId` deletes a service (owner only).
+- Service detail: `GET /service/:serviceId` returns a service (owner or public if active + discoverable).
+- Update service: `PATCH /service/:serviceId` updates a service (owner only).
+- Delete service: `DELETE /service/:serviceId` deletes a service (owner only).
 - Headline options: `GET /headlines` returns the allowed headline list for clients.
 - Create booking request: `POST /bookings` creates a booking request using `requestedDate` + `timeOfDay` (not an exact timestamp).
 - Booking requests snapshot the service title, price, and duration at request time so the bookings inbox and history remain stable after service edits.

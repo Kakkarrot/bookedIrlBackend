@@ -64,7 +64,7 @@ export async function serviceRoutes(app: FastifyInstance) {
     reply.send(result.rows);
   });
 
-  app.get("/services/:serviceId", async (request, reply) => {
+  app.get("/service/:serviceId", async (request, reply) => {
     const auth = await requireUser(request, reply);
     if (!auth) return;
 
@@ -95,7 +95,7 @@ export async function serviceRoutes(app: FastifyInstance) {
     reply.send(result.rows[0]);
   });
 
-  app.post("/services", async (request, reply) => {
+  app.post("/service", async (request, reply) => {
     const auth = await requireUser(request, reply);
     if (!auth) return;
 
@@ -128,7 +128,7 @@ export async function serviceRoutes(app: FastifyInstance) {
     reply.code(201).send({ id: serviceId });
   });
 
-  app.patch("/services/:serviceId", async (request, reply) => {
+  app.patch("/service/:serviceId", async (request, reply) => {
     const auth = await requireUser(request, reply);
     if (!auth) return;
 
@@ -211,7 +211,7 @@ export async function serviceRoutes(app: FastifyInstance) {
     reply.code(201).send({ id: serviceId });
   });
 
-  app.delete("/services/:serviceId", async (request, reply) => {
+  app.delete("/service/:serviceId", async (request, reply) => {
     const auth = await requireUser(request, reply);
     if (!auth) return;
 
