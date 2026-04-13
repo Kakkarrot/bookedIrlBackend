@@ -172,45 +172,6 @@ export async function serviceRoutes(app: FastifyInstance) {
     reply.send({ ok: true });
   });
 
-  app.post("/users/:userId/services", async (request, reply) => {
-    const auth = await requireUser(request, reply);
-    if (!auth) return;
-
-    const params = userIdParamsSchema.parse(request.params);
-    if (params.userId !== auth.userId) {
-      reply.code(403).send({ error: "forbidden" });
-      return;
-    }
-
-    const payload = createServiceSchema.parse(request.body);
-    const countResult = await db.query(
-      "SELECT COUNT(*)::int AS count FROM services WHERE user_id = $1",
-      [params.userId]
-    );
-
-    if (countResult.rows[0].count >= 3) {
-      reply.code(400).send({ error: "service_limit_reached" });
-      return;
-    }
-
-    const serviceId = randomUUID();
-
-    await db.query(
-      "INSERT INTO services (id, user_id, title, description, price_dollars, duration_minutes, is_active) VALUES ($1, $2, $3, $4, $5, $6, $7)",
-      [
-        serviceId,
-        params.userId,
-        payload.title,
-        payload.description ?? null,
-        payload.priceDollars,
-        payload.durationMinutes,
-        payload.isActive ?? true
-      ]
-    );
-
-    reply.code(201).send({ id: serviceId });
-  });
-
   app.delete("/service/:serviceId", async (request, reply) => {
     const auth = await requireUser(request, reply);
     if (!auth) return;

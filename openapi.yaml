@@ -322,22 +322,6 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/Service"
-    post:
-      tags: [services]
-      security:
-        - bearerAuth: []
-      summary: Create service for user
-      parameters:
-        - $ref: "#/components/parameters/UserId"
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/ServiceCreate"
-      responses:
-        "201":
-          description: Created
           content:
             application/json:
               schema:
