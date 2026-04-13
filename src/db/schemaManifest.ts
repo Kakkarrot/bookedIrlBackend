@@ -1,31 +1,28 @@
 import type { Pool } from "pg";
 
 export type SchemaColumn = {
-  name: string;
   type: string;
   isNullable: boolean;
   defaultValue: string | null;
 };
 
 export type SchemaConstraint = {
-  name: string;
   type: string;
   definition: string;
 };
 
 export type SchemaIndex = {
-  name: string;
   definition: string;
 };
 
 export type SchemaTable = {
-  columns: SchemaColumn[];
-  constraints: SchemaConstraint[];
-  indexes: SchemaIndex[];
+  columns: Record<string, SchemaColumn>;
+  constraints: Record<string, SchemaConstraint>;
+  indexes: Record<string, SchemaIndex>;
 };
 
 export type SchemaManifest = {
-  extensions: string[];
+  extensions: Record<string, true>;
   tables: Record<string, SchemaTable>;
 };
 
@@ -33,8 +30,23 @@ function normalizeWhitespace(value: string) {
   return value.replace(/\s+/g, " ").trim();
 }
 
-function sortByName<T extends { name: string }>(values: T[]) {
-  return [...values].sort((left, right) => left.name.localeCompare(right.name));
+function normalizeSqlExpression(value: string | null) {
+  if (!value) {
+    return null;
+  }
+
+  let normalized = normalizeWhitespace(value);
+
+  // Postgres often wraps defaults in redundant outer parentheses when introspected.
+  while (normalized.startsWith("(") && normalized.endsWith(")")) {
+    const candidate = normalized.slice(1, -1).trim();
+    if (!candidate) {
+      break;
+    }
+    normalized = candidate;
+  }
+
+  return normalized;
 }
 
 export async function readSchemaManifest(pool: Pool): Promise<SchemaManifest> {
@@ -123,53 +135,43 @@ export async function readSchemaManifest(pool: Pool): Promise<SchemaManifest> {
     }
 
     const created: SchemaTable = {
-      columns: [],
-      constraints: [],
-      indexes: []
+      columns: {},
+      constraints: {},
+      indexes: {}
     };
     tables.set(tableName, created);
     return created;
   };
 
   for (const row of columnsResult.rows) {
-    getOrCreateTable(row.table_name).columns.push({
-      name: row.column_name,
+    getOrCreateTable(row.table_name).columns[row.column_name] = {
       type: normalizeWhitespace(row.formatted_type),
       isNullable: row.is_nullable,
-      defaultValue: row.default_value ? normalizeWhitespace(row.default_value) : null
-    });
+      defaultValue: normalizeSqlExpression(row.default_value)
+    };
   }
 
   for (const row of constraintsResult.rows) {
-    getOrCreateTable(row.table_name).constraints.push({
-      name: row.constraint_name,
+    getOrCreateTable(row.table_name).constraints[row.constraint_name] = {
       type: row.constraint_type,
       definition: normalizeWhitespace(row.definition)
-    });
+    };
   }
 
   for (const row of indexesResult.rows) {
-    getOrCreateTable(row.table_name).indexes.push({
-      name: row.index_name,
+    getOrCreateTable(row.table_name).indexes[row.index_name] = {
       definition: normalizeWhitespace(row.definition)
-    });
+    };
   }
 
   const normalizedTables = Object.fromEntries(
-    [...tables.entries()]
-      .sort(([left], [right]) => left.localeCompare(right))
-      .map(([tableName, table]) => [
-        tableName,
-        {
-          columns: table.columns,
-          constraints: sortByName(table.constraints),
-          indexes: sortByName(table.indexes)
-        }
-      ])
+    [...tables.entries()].sort(([left], [right]) => left.localeCompare(right))
   );
 
   return {
-    extensions: extensionsResult.rows.map((row) => row.extname),
+    extensions: Object.fromEntries(
+      extensionsResult.rows.map((row) => [row.extname, true] as const)
+    ),
     tables: normalizedTables
   };
 }

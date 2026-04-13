@@ -6,6 +6,14 @@ import { readSchemaManifest } from "../src/db/schemaManifest";
 
 dotenv.config();
 
+const defaultIgnoredRemoteOnlyExtensions = new Set([
+  "pg_graphql",
+  "pg_stat_statements",
+  "pgcrypto",
+  "supabase_vault",
+  "uuid-ossp"
+]);
+
 function getRemoteDatabaseUrl() {
   const databaseUrl = process.env.SCHEMA_DRIFT_REMOTE_URL ?? process.env.DB_DIRECT_URL;
 
@@ -32,15 +40,17 @@ async function main() {
       readSchemaManifest(remotePool)
     ]);
 
-    const diffs = diffSchemaManifest(localManifest, remoteManifest);
+    const filteredDiffs = diffSchemaManifest(localManifest, remoteManifest, {
+      ignoreRemoteOnlyExtensions: defaultIgnoredRemoteOnlyExtensions
+    });
 
-    if (diffs.length === 0) {
+    if (filteredDiffs.length === 0) {
       console.log("Schema drift check passed: remote schema matches local src/db/schema.sql.");
       return;
     }
 
     console.error("Schema drift detected between local schema.sql and remote database:");
-    for (const diff of diffs) {
+    for (const diff of filteredDiffs) {
       console.error(`- ${diff}`);
     }
 
