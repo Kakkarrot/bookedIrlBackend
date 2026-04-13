@@ -34,11 +34,9 @@ test("bootstrap schema exposes the contract-critical columns and indexes the app
     assert.ok(bookingColumns.has("time_of_day"));
 
     const chatColumns = await getColumnNames(harness.pool, "chats");
-    assert.ok(chatColumns.has("buyer_id"));
-    assert.ok(chatColumns.has("seller_id"));
+    assert.ok(chatColumns.has("booking_id"));
     assert.ok(chatColumns.has("participant_a"));
     assert.ok(chatColumns.has("participant_b"));
-    assert.ok(chatColumns.has("service_id"));
 
     const bookingsIndexResult = await harness.pool.query<{
       indexname: string;
@@ -55,6 +53,19 @@ test("bootstrap schema exposes the contract-critical columns and indexes the app
     assert.match(bookingsIndexResult.rows[0].indexdef, /CREATE UNIQUE INDEX/i);
     assert.match(bookingsIndexResult.rows[0].indexdef, /participant_a, participant_b/i);
     assert.match(bookingsIndexResult.rows[0].indexdef, /status.*requested.*accepted/i);
+
+    const chatsIndexResult = await harness.pool.query<{
+      indexname: string;
+      indexdef: string;
+    }>(
+      `
+      SELECT indexname, indexdef
+      FROM pg_indexes
+      WHERE schemaname = 'public' AND tablename = 'chats' AND indexname = 'chats_booking_id_idx'
+      `
+    );
+
+    assert.equal(chatsIndexResult.rowCount, 1);
 
     const postgisResult = await harness.pool.query<{ extname: string }>(
       "SELECT extname FROM pg_extension WHERE extname = 'postgis'"

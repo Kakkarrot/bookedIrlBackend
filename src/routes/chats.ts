@@ -35,16 +35,20 @@ const bookingIdParamsSchema = z.object({
   bookingId: z.string().uuid()
 });
 
+function canonicalPair(leftUserId: string, rightUserId: string) {
+  return leftUserId < rightUserId
+    ? { participantA: leftUserId, participantB: rightUserId }
+    : { participantA: rightUserId, participantB: leftUserId };
+}
+
 type ChatParticipantRow = {
-  buyer_id: string;
-  seller_id: string;
+  participant_a: string;
+  participant_b: string;
 };
 
 type ChatSummaryRow = {
   id: string;
-  buyer_id: string;
-  seller_id: string;
-  service_id: string;
+  booking_id: string;
   last_message_at: string | null;
   service_title: string;
   other_user_id: string;
@@ -62,11 +66,9 @@ async function listChatsForUser(db: Pool, userId: string, limit: number, offset:
   return db.query(
     `
       SELECT c.id,
-             c.buyer_id,
-             c.seller_id,
-             c.service_id,
+             c.booking_id,
              c.last_message_at,
-             s.title AS service_title,
+             b.service_title,
              ou.id AS other_user_id,
              ou.display_name AS other_user_display_name,
              ou.username AS other_user_username,
@@ -77,11 +79,11 @@ async function listChatsForUser(db: Pool, userId: string, limit: number, offset:
              COALESCE(mu.unread_count, 0) AS unread_count,
              (cr.last_read_at IS NULL) AS is_unseen
       FROM chats c
-      JOIN services s ON s.id = c.service_id
+      JOIN bookings b ON b.id = c.booking_id
       JOIN users ou
         ON ou.id = CASE
-          WHEN c.buyer_id = $1 THEN c.seller_id
-          ELSE c.buyer_id
+          WHEN c.participant_a = $1 THEN c.participant_b
+          ELSE c.participant_a
         END
       LEFT JOIN LATERAL (
         SELECT up.url
@@ -105,7 +107,7 @@ async function listChatsForUser(db: Pool, userId: string, limit: number, offset:
           AND m.sender_id <> $1
           AND (cr.last_read_at IS NULL OR m.created_at > cr.last_read_at)
       ) mu ON true
-      WHERE c.buyer_id = $1 OR c.seller_id = $1
+      WHERE c.participant_a = $1 OR c.participant_b = $1
       ORDER BY c.last_message_at DESC NULLS LAST
       LIMIT $2 OFFSET $3
     `,
@@ -115,7 +117,7 @@ async function listChatsForUser(db: Pool, userId: string, limit: number, offset:
 
 async function getAuthorizedChat(db: Pool, chatId: string, userId: string) {
   const chatResult = await db.query<ChatParticipantRow>(
-    "SELECT buyer_id, seller_id FROM chats WHERE id = $1",
+    "SELECT participant_a, participant_b FROM chats WHERE id = $1",
     [chatId]
   );
 
@@ -124,7 +126,7 @@ async function getAuthorizedChat(db: Pool, chatId: string, userId: string) {
   }
 
   const chat = chatResult.rows[0];
-  if (chat.buyer_id !== userId && chat.seller_id !== userId) {
+  if (chat.participant_a !== userId && chat.participant_b !== userId) {
     return { error: "forbidden" as const };
   }
 
@@ -134,9 +136,7 @@ async function getAuthorizedChat(db: Pool, chatId: string, userId: string) {
 function serializeChatSummary(row: ChatSummaryRow) {
   return {
     id: row.id,
-    buyer_id: row.buyer_id,
-    seller_id: row.seller_id,
-    service_id: row.service_id,
+    booking_id: row.booking_id,
     last_message_at: row.last_message_at,
     service_title: row.service_title,
     other_user: {
@@ -236,8 +236,7 @@ export async function chatRoutes(app: FastifyInstance) {
     void app.realtimeBroker.publish(
       buildChatMessageCreatedEvent({
         chatId: params.id,
-        buyerUserId: participants.buyer_id,
-        sellerUserId: participants.seller_id,
+        participantUserIds: [participants.participant_a, participants.participant_b],
         messageId,
         senderUserId: auth.userId
       })
@@ -330,7 +329,7 @@ export async function chatRoutes(app: FastifyInstance) {
     const params = bookingIdParamsSchema.parse(request.params);
 
     const bookingResult = await db.query(
-      "SELECT buyer_id, seller_id, service_id, status FROM bookings WHERE id = $1",
+      "SELECT buyer_id, seller_id, status FROM bookings WHERE id = $1",
       [params.bookingId]
     );
 
@@ -365,9 +364,10 @@ export async function chatRoutes(app: FastifyInstance) {
       return;
     }
 
+    const { participantA, participantB } = canonicalPair(booking.buyer_id, booking.seller_id);
     const existing = await db.query(
-      "SELECT id FROM chats WHERE buyer_id = $1 AND seller_id = $2 AND service_id = $3",
-      [booking.buyer_id, booking.seller_id, booking.service_id]
+      "SELECT id FROM chats WHERE participant_a = $1 AND participant_b = $2",
+      [participantA, participantB]
     );
 
     if (existing.rowCount) {
@@ -382,8 +382,8 @@ export async function chatRoutes(app: FastifyInstance) {
 
     const chatId = randomUUID();
     await db.query(
-      "INSERT INTO chats (id, buyer_id, seller_id, service_id) VALUES ($1, $2, $3, $4)",
-      [chatId, booking.buyer_id, booking.seller_id, booking.service_id]
+      "INSERT INTO chats (id, booking_id, participant_a, participant_b) VALUES ($1, $2, $3, $4)",
+      [chatId, params.bookingId, participantA, participantB]
     );
 
     logRequestEvent(request, "info", "booking_chat_created", {
@@ -394,8 +394,7 @@ export async function chatRoutes(app: FastifyInstance) {
     void app.realtimeBroker.publish(
       buildChatCreatedEvent({
         chatId,
-        buyerUserId: booking.buyer_id,
-        sellerUserId: booking.seller_id
+        participantUserIds: [booking.buyer_id, booking.seller_id]
       })
     ).catch((error) => {
       request.log.error({

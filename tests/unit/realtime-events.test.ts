@@ -39,8 +39,7 @@ test("buildBookingUpdatedEvent targets both participants with the new status", (
 test("buildChatCreatedEvent targets both participants with the chat id", () => {
   const event = buildChatCreatedEvent({
     chatId: "chat-1",
-    buyerUserId: "buyer-1",
-    sellerUserId: "seller-1"
+    participantUserIds: ["buyer-1", "seller-1"]
   });
 
   assert.deepEqual(event.recipients, ["buyer-1", "seller-1"]);
@@ -51,8 +50,7 @@ test("buildChatCreatedEvent targets both participants with the chat id", () => {
 test("buildChatMessageCreatedEvent targets both participants with sender and message metadata", () => {
   const event = buildChatMessageCreatedEvent({
     chatId: "chat-2",
-    buyerUserId: "buyer-1",
-    sellerUserId: "seller-1",
+    participantUserIds: ["buyer-1", "seller-1"],
     messageId: "message-1",
     senderUserId: "buyer-1"
   });

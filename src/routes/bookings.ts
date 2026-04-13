@@ -377,30 +377,38 @@ export async function bookingRoutes(app: FastifyInstance) {
             [participantA, participantB]
           );
 
-          if (!existingChat.rowCount) {
-            const chatId = randomUUID();
-            await client.query(
-              `
-              INSERT INTO chats (id, buyer_id, seller_id, participant_a, participant_b, service_id)
-              VALUES ($1, $2, $3, $4, $5, $6)
-              `,
-              [
-                chatId,
-                booking.buyer_id,
-                booking.seller_id,
-                participantA,
-                participantB,
-                booking.service_id
-              ]
-            );
-            createdChatId = chatId;
-            logRequestEvent(request, "info", "chat_created_from_booking_accept", {
+          if (existingChat.rowCount) {
+            await client.query("ROLLBACK");
+            logRequestEvent(request, "warn", "booking_update_rejected", {
+              reason: "chat_already_exists",
+              actor_user_id: auth.userId,
               booking_id: params.bookingId,
-              chat_id: chatId,
-              buyer_user_id: booking.buyer_id,
-              seller_user_id: booking.seller_id
+              existing_chat_id: existingChat.rows[0].id
             });
+            reply.code(409).send({ error: "chat_already_exists" });
+            return;
           }
+
+          const chatId = randomUUID();
+          await client.query(
+            `
+            INSERT INTO chats (id, booking_id, participant_a, participant_b)
+            VALUES ($1, $2, $3, $4)
+            `,
+            [
+              chatId,
+              params.bookingId,
+              participantA,
+              participantB
+            ]
+          );
+          createdChatId = chatId;
+          logRequestEvent(request, "info", "chat_created_from_booking_accept", {
+            booking_id: params.bookingId,
+            chat_id: chatId,
+            buyer_user_id: booking.buyer_id,
+            seller_user_id: booking.seller_id
+          });
         }
       }
 
@@ -432,8 +440,7 @@ export async function bookingRoutes(app: FastifyInstance) {
           void app.realtimeBroker.publish(
             buildChatCreatedEvent({
               chatId: createdChatId,
-              buyerUserId: booking.buyer_id,
-              sellerUserId: booking.seller_id
+              participantUserIds: [booking.buyer_id, booking.seller_id]
             })
           ).catch((error) => {
             request.log.error({

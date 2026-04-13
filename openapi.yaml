@@ -958,11 +958,7 @@ components:
       properties:
         id:
           type: string
-        buyer_id:
-          type: string
-        seller_id:
-          type: string
-        service_id:
+        booking_id:
           type: string
         last_message_at:
           type: string
@@ -986,7 +982,7 @@ components:
           type: integer
         is_unseen:
           type: boolean
-      required: [id, buyer_id, seller_id, service_id, service_title, other_user, unread_count, is_unseen]
+      required: [id, booking_id, service_title, other_user, unread_count, is_unseen]
     ChatMessage:
       type: object
       properties:

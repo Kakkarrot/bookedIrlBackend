@@ -80,8 +80,8 @@ async function createChatsTestContext() {
   assert.equal(acceptResponse.statusCode, 200);
 
   const chatResult = await testApp.pool.query<{ id: string }>(
-    "SELECT id FROM chats WHERE buyer_id = $1 AND seller_id = $2",
-    [buyer.userId, seller.userId]
+    "SELECT id FROM chats WHERE booking_id = $1",
+    [bookingId]
   );
 
   assert.equal(chatResult.rowCount, 1);

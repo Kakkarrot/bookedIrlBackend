@@ -29,9 +29,12 @@ Clients should not bypass it for business data or realtime state.
 - Bookings are a seller inbox, not a generic notifications system
 - Bookings use `requestedDate` + `timeOfDay`
 - Only one open booking may exist per user pair while status is `requested` or `accepted`
+- Existing chat should change the client CTA from `Book` to `Message`
+- Backend booking creation is still rejected by existing open bookings (`requested` or `accepted`)
 - Self-booking must return `cannot_book_own_service` before generic service errors
 - Only the seller may accept or decline
-- Accepting a booking creates the chat
+- Accepting a booking creates one durable chat for the participant pair
+- Booking acceptance must fail if a durable chat already exists for that participant pair
 - Chat inbox summaries must include:
   - `other_user`
   - `unread_count`

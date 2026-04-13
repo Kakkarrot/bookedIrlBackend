@@ -98,11 +98,10 @@ export function buildBookingUpdatedEvent(input: {
 
 export function buildChatCreatedEvent(input: {
   chatId: string;
-  buyerUserId: string;
-  sellerUserId: string;
+  participantUserIds: [string, string];
 }): RoutedRealtimeEvent {
   return {
-    recipients: [input.buyerUserId, input.sellerUserId],
+    recipients: [...input.participantUserIds],
     event: {
       id: createEventId(),
       type: "chat.created",
@@ -116,13 +115,12 @@ export function buildChatCreatedEvent(input: {
 
 export function buildChatMessageCreatedEvent(input: {
   chatId: string;
-  buyerUserId: string;
-  sellerUserId: string;
+  participantUserIds: [string, string];
   messageId: string;
   senderUserId: string;
 }): RoutedRealtimeEvent {
   return {
-    recipients: [input.buyerUserId, input.sellerUserId],
+    recipients: [...input.participantUserIds],
     event: {
       id: createEventId(),
       type: "chat.message_created",
