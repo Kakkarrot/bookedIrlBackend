@@ -25,6 +25,30 @@
 - `POST /user/photos`
   - authenticated user photo replacement is implemented
 
+### Uploads
+- `POST /uploads/photos/sign`
+  - signed profile photo upload URL creation is implemented
+- `POST /uploads/photos/delete`
+  - profile photo deletion by storage path or public URL is implemented
+
+### Services
+- `POST /service`
+  - current-user service creation is implemented
+- `GET /service/:serviceId`
+  - single-service read with owner/public visibility rules is implemented
+- `PATCH /service/:serviceId`
+  - owner-only service update is implemented
+- `DELETE /service/:serviceId`
+  - owner-only service delete is implemented
+
 ## Planned
+
+### Test Coverage
+- add integration-style route coverage for `POST /uploads/photos/sign`
+  - valid sign request
+  - invalid content type rejection
+- add integration-style route coverage for `POST /uploads/photos/delete`
+  - invalid/no owned paths rejection
+  - successful delete flow with injected storage dependency
 
 ## Open Questions

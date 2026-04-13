@@ -8,4 +8,5 @@ import "./chats.test";
 import "./discover.test";
 import "./realtime-stream.test";
 import "./schema-contract.test";
+import "./service.test";
 import "./users.test";
