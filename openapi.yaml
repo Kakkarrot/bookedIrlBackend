@@ -323,6 +323,7 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/Booking"
+  /booking:
     post:
       tags: [bookings]
       security:
@@ -341,7 +342,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/IdResponse"
-  /bookings/{bookingId}:
+  /booking/{bookingId}:
     patch:
       tags: [bookings]
       security:

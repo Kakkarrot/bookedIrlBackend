@@ -47,6 +47,14 @@
 - `DELETE /service/:serviceId`
   - owner-only service delete is implemented
 
+### Bookings
+- `GET /bookings`
+  - seller inbox booking listing is implemented
+- `POST /booking`
+  - booking request creation is implemented
+- `PATCH /booking/:bookingId`
+  - seller-side booking acceptance / decline is implemented
+
 ## Planned
 
 ### Test Coverage

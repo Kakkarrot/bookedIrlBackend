@@ -120,7 +120,7 @@ test("GET /events/stream delivers booking create and update events to the affect
 
     const createResponse = await testApp.app.inject({
       method: "POST",
-      url: "/bookings",
+      url: "/booking",
       headers: {
         authorization: "Bearer buyer-token",
         "x-api-version": testApp.apiVersion
@@ -147,7 +147,7 @@ test("GET /events/stream delivers booking create and update events to the affect
 
     const acceptResponse = await testApp.app.inject({
       method: "PATCH",
-      url: `/bookings/${bookingId}`,
+      url: `/booking/${bookingId}`,
       headers: {
         authorization: "Bearer seller-token",
         "x-api-version": testApp.apiVersion

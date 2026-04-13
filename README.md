@@ -48,11 +48,11 @@ The OpenAPI spec is served at `GET /openapi.yaml` for client generation.
 - Update service: `PATCH /service/:serviceId` updates a service (owner only).
 - Delete service: `DELETE /service/:serviceId` deletes a service (owner only).
 - Headline options: `GET /headlines` returns the allowed headline list for clients.
-- Create booking request: `POST /bookings` creates a booking request using `requestedDate` + `timeOfDay` (not an exact timestamp).
+- Create booking request: `POST /booking` creates a booking request using `requestedDate` + `timeOfDay` (not an exact timestamp).
 - Booking requests snapshot the service title, price, and duration at request time so the bookings inbox and history remain stable after service edits.
 - Booking anti-spam rule: only one non-declined booking may exist between a pair of users at a time; duplicates return `409 booking_already_exists`.
 - Booking validation: users cannot book their own service or an inactive service; self-booking returns `cannot_book_own_service` before generic availability errors.
-- Update booking: `PATCH /bookings/:bookingId` only supports seller-side `accepted` / `declined`.
+- Update booking: `PATCH /booking/:bookingId` only supports seller-side `accepted` / `declined`.
 - Accepting a booking creates the chat; `POST /bookings/:bookingId/chat` only works for accepted bookings.
 - Bookings are the source of truth for the iOS bookings inbox (the tab previously named notifications).
 - List bookings inbox: `GET /bookings` returns booking summaries for services owned by the authenticated user, including minimal buyer profile info for rendering (supports `limit`/`offset`).

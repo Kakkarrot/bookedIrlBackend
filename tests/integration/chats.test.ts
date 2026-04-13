@@ -50,7 +50,7 @@ async function createChatsTestContext() {
 
   const createResponse = await testApp.app.inject({
     method: "POST",
-    url: "/bookings",
+    url: "/booking",
     headers: {
       authorization: "Bearer buyer-token",
       "x-api-version": testApp.apiVersion
@@ -67,7 +67,7 @@ async function createChatsTestContext() {
 
   const acceptResponse = await testApp.app.inject({
     method: "PATCH",
-    url: `/bookings/${bookingId}`,
+    url: `/booking/${bookingId}`,
     headers: {
       authorization: "Bearer seller-token",
       "x-api-version": testApp.apiVersion

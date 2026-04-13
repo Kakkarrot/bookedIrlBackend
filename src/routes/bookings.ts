@@ -136,7 +136,7 @@ export async function bookingRoutes(app: FastifyInstance) {
     reply.send(result.rows.map(toBookingResponse));
   });
 
-  app.post("/bookings", async (request, reply) => {
+  app.post("/booking", async (request, reply) => {
     const auth = await requireUser(request, reply);
     if (!auth) return;
 
@@ -298,7 +298,7 @@ export async function bookingRoutes(app: FastifyInstance) {
     }
   });
 
-  app.patch("/bookings/:bookingId", async (request, reply) => {
+  app.patch("/booking/:bookingId", async (request, reply) => {
     const auth = await requireUser(request, reply);
     if (!auth) return;
 

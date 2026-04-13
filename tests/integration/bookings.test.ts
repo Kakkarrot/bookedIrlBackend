@@ -50,13 +50,13 @@ async function createBookingsTestContext() {
   };
 }
 
-test("POST /bookings rejects duplicate open bookings between the same buyer and seller", async () => {
+test("POST /booking rejects duplicate open bookings between the same buyer and seller", async () => {
   const { testApp, buyer, seller, service } = await createBookingsTestContext();
 
   try {
     const firstResponse = await testApp.app.inject({
       method: "POST",
-      url: "/bookings",
+      url: "/booking",
       headers: {
         authorization: "Bearer buyer-token",
         "x-api-version": testApp.apiVersion
@@ -75,7 +75,7 @@ test("POST /bookings rejects duplicate open bookings between the same buyer and 
 
     const duplicateResponse = await testApp.app.inject({
       method: "POST",
-      url: "/bookings",
+      url: "/booking",
       headers: {
         authorization: "Bearer buyer-token",
         "x-api-version": testApp.apiVersion
@@ -125,7 +125,7 @@ test("POST /bookings rejects duplicate open bookings between the same buyer and 
   }
 });
 
-test("POST /bookings returns cannot_book_own_service before generic availability errors", async () => {
+test("POST /booking returns cannot_book_own_service before generic availability errors", async () => {
   const tokenToUid = new Map([["seller-token", "seller-firebase-uid"]]);
 
   const testApp = await createTestApp({
@@ -157,7 +157,7 @@ test("POST /bookings returns cannot_book_own_service before generic availability
 
     const response = await testApp.app.inject({
       method: "POST",
-      url: "/bookings",
+      url: "/booking",
       headers: {
         authorization: "Bearer seller-token",
         "x-api-version": testApp.apiVersion
@@ -176,13 +176,13 @@ test("POST /bookings returns cannot_book_own_service before generic availability
   }
 });
 
-test("PATCH /bookings/:bookingId only allows the seller to accept and blocks later transitions", async () => {
+test("PATCH /booking/:bookingId only allows the seller to accept and blocks later transitions", async () => {
   const { testApp, buyer, service } = await createBookingsTestContext();
 
   try {
     const createResponse = await testApp.app.inject({
       method: "POST",
-      url: "/bookings",
+      url: "/booking",
       headers: {
         authorization: "Bearer buyer-token",
         "x-api-version": testApp.apiVersion
@@ -200,7 +200,7 @@ test("PATCH /bookings/:bookingId only allows the seller to accept and blocks lat
 
     const buyerUpdateResponse = await testApp.app.inject({
       method: "PATCH",
-      url: `/bookings/${bookingId}`,
+      url: `/booking/${bookingId}`,
       headers: {
         authorization: "Bearer buyer-token",
         "x-api-version": testApp.apiVersion
@@ -215,7 +215,7 @@ test("PATCH /bookings/:bookingId only allows the seller to accept and blocks lat
 
     const sellerAcceptResponse = await testApp.app.inject({
       method: "PATCH",
-      url: `/bookings/${bookingId}`,
+      url: `/booking/${bookingId}`,
       headers: {
         authorization: "Bearer seller-token",
         "x-api-version": testApp.apiVersion
@@ -230,7 +230,7 @@ test("PATCH /bookings/:bookingId only allows the seller to accept and blocks lat
 
     const secondTransitionResponse = await testApp.app.inject({
       method: "PATCH",
-      url: `/bookings/${bookingId}`,
+      url: `/booking/${bookingId}`,
       headers: {
         authorization: "Bearer seller-token",
         "x-api-version": testApp.apiVersion
@@ -263,13 +263,13 @@ test("PATCH /bookings/:bookingId only allows the seller to accept and blocks lat
   }
 });
 
-test("PATCH /bookings/:bookingId creates a chat when the seller accepts the booking", async () => {
+test("PATCH /booking/:bookingId creates a chat when the seller accepts the booking", async () => {
   const { testApp, buyer, seller, service } = await createBookingsTestContext();
 
   try {
     const createResponse = await testApp.app.inject({
       method: "POST",
-      url: "/bookings",
+      url: "/booking",
       headers: {
         authorization: "Bearer buyer-token",
         "x-api-version": testApp.apiVersion
@@ -287,7 +287,7 @@ test("PATCH /bookings/:bookingId creates a chat when the seller accepts the book
 
     const acceptResponse = await testApp.app.inject({
       method: "PATCH",
-      url: `/bookings/${bookingId}`,
+      url: `/booking/${bookingId}`,
       headers: {
         authorization: "Bearer seller-token",
         "x-api-version": testApp.apiVersion
@@ -327,13 +327,13 @@ test("PATCH /bookings/:bookingId creates a chat when the seller accepts the book
   }
 });
 
-test("PATCH /bookings/:bookingId keeps chat creation idempotent after acceptance", async () => {
+test("PATCH /booking/:bookingId keeps chat creation idempotent after acceptance", async () => {
   const { testApp, buyer, seller, service } = await createBookingsTestContext();
 
   try {
     const createResponse = await testApp.app.inject({
       method: "POST",
-      url: "/bookings",
+      url: "/booking",
       headers: {
         authorization: "Bearer buyer-token",
         "x-api-version": testApp.apiVersion
@@ -351,7 +351,7 @@ test("PATCH /bookings/:bookingId keeps chat creation idempotent after acceptance
 
     const firstAcceptResponse = await testApp.app.inject({
       method: "PATCH",
-      url: `/bookings/${bookingId}`,
+      url: `/booking/${bookingId}`,
       headers: {
         authorization: "Bearer seller-token",
         "x-api-version": testApp.apiVersion
@@ -381,7 +381,7 @@ test("PATCH /bookings/:bookingId keeps chat creation idempotent after acceptance
 
     const repeatedAcceptResponse = await testApp.app.inject({
       method: "PATCH",
-      url: `/bookings/${bookingId}`,
+      url: `/booking/${bookingId}`,
       headers: {
         authorization: "Bearer seller-token",
         "x-api-version": testApp.apiVersion
@@ -420,7 +420,7 @@ test("PATCH /bookings/:bookingId keeps chat creation idempotent after acceptance
   }
 });
 
-test("PATCH /bookings/:bookingId rejects acceptance when a chat already exists for the pair", async () => {
+test("PATCH /booking/:bookingId rejects acceptance when a chat already exists for the pair", async () => {
   const { testApp, buyer, seller, service } = await createBookingsTestContext();
 
   try {
@@ -465,7 +465,7 @@ test("PATCH /bookings/:bookingId rejects acceptance when a chat already exists f
 
     const createResponse = await testApp.app.inject({
       method: "POST",
-      url: "/bookings",
+      url: "/booking",
       headers: {
         authorization: "Bearer buyer-token",
         "x-api-version": testApp.apiVersion
@@ -483,7 +483,7 @@ test("PATCH /bookings/:bookingId rejects acceptance when a chat already exists f
 
     const acceptResponse = await testApp.app.inject({
       method: "PATCH",
-      url: `/bookings/${bookingId}`,
+      url: `/booking/${bookingId}`,
       headers: {
         authorization: "Bearer seller-token",
         "x-api-version": testApp.apiVersion
