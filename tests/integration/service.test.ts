@@ -125,6 +125,120 @@ test("POST /service rejects creation after the service limit is reached", async 
   }
 });
 
+test("GET /services returns the authenticated user's own services when userIds is omitted", async () => {
+  const { testApp, owner, viewer } = await createServicesTestContext();
+
+  try {
+    const newest = await createService(testApp.pool, {
+      userId: owner.userId,
+      title: "Newest Owner Service",
+      isActive: false
+    });
+    const oldest = await createService(testApp.pool, {
+      userId: owner.userId,
+      title: "Oldest Owner Service",
+      isActive: true
+    });
+    await createService(testApp.pool, {
+      userId: viewer.userId,
+      title: "Viewer Service",
+      isActive: true
+    });
+
+    const response = await testApp.app.inject({
+      method: "GET",
+      url: "/services",
+      headers: {
+        authorization: "Bearer owner-token",
+        "x-api-version": testApp.apiVersion
+      }
+    });
+
+    assert.equal(response.statusCode, 200);
+    const body = response.json() as Array<{
+      id: string;
+      user_id: string;
+      title: string;
+      is_active: boolean;
+    }>;
+
+    assert.equal(body.length, 2);
+    assert.equal(body[0].id, oldest.serviceId);
+    assert.equal(body[0].title, "Oldest Owner Service");
+    assert.equal(body[0].is_active, true);
+    assert.equal(body[1].id, newest.serviceId);
+    assert.equal(body[1].title, "Newest Owner Service");
+    assert.equal(body[1].is_active, false);
+    assert.ok(body.every((service) => service.user_id === owner.userId));
+  } finally {
+    await testApp.close();
+  }
+});
+
+test("GET /services with userIds only returns active services for discoverable users in the requested set", async () => {
+  const { testApp, owner, viewer, stranger } = await createServicesTestContext();
+
+  try {
+    await createPhoto(testApp.pool, {
+      userId: owner.userId,
+      url: "https://example.com/owner-photo.jpg"
+    });
+    const ownerActive = await createService(testApp.pool, {
+      userId: owner.userId,
+      title: "Owner Active",
+      isActive: true
+    });
+    await createService(testApp.pool, {
+      userId: owner.userId,
+      title: "Owner Inactive",
+      isActive: false
+    });
+
+    await createPhoto(testApp.pool, {
+      userId: viewer.userId,
+      url: "https://example.com/viewer-photo.jpg"
+    });
+    const viewerActive = await createService(testApp.pool, {
+      userId: viewer.userId,
+      title: "Viewer Active",
+      isActive: true
+    });
+
+    await createService(testApp.pool, {
+      userId: stranger.userId,
+      title: "Stranger Active But Hidden",
+      isActive: true
+    });
+
+    const response = await testApp.app.inject({
+      method: "GET",
+      url: `/services?userIds=${owner.userId},${viewer.userId},${stranger.userId}`,
+      headers: {
+        authorization: "Bearer owner-token",
+        "x-api-version": testApp.apiVersion
+      }
+    });
+
+    assert.equal(response.statusCode, 200);
+    const body = response.json() as Array<{
+      id: string;
+      user_id: string;
+      title: string;
+      is_active: boolean;
+    }>;
+
+    assert.equal(body.length, 2);
+    const ids = new Set(body.map((service) => service.id));
+    assert.ok(ids.has(ownerActive.serviceId));
+    assert.ok(ids.has(viewerActive.serviceId));
+    assert.ok(body.every((service) => service.is_active === true));
+    assert.ok(!body.some((service) => service.user_id === stranger.userId));
+    assert.ok(!body.some((service) => service.title === "Owner Inactive"));
+  } finally {
+    await testApp.close();
+  }
+});
+
 test("GET /service/:serviceId returns an owner's inactive service", async () => {
   const { testApp, owner } = await createServicesTestContext();
 

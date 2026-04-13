@@ -27,10 +27,6 @@ const listServicesSchema = z.object({
   userIds: z.string().optional()
 });
 
-const userIdParamsSchema = z.object({
-  userId: z.string().uuid()
-});
-
 export async function serviceRoutes(app: FastifyInstance) {
   const db = app.dbPool;
 

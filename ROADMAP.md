@@ -32,6 +32,8 @@
   - profile photo deletion by storage path or public URL is implemented
 
 ### Services
+- `GET /services`
+  - service listing is implemented for both self-service reads and discover hydration via `userIds`
 - `POST /service`
   - current-user service creation is implemented
 - `GET /service/:serviceId`
