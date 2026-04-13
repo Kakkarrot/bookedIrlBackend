@@ -65,6 +65,10 @@
 - `POST /chats/:id/read`
   - chat read-state updates are implemented with integration coverage
 
+### Realtime
+- `GET /events/stream`
+  - SSE realtime stream is implemented with integration coverage for booking and chat events
+
 ## Planned
 
 ### Push

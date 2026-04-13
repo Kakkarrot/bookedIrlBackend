@@ -48,7 +48,7 @@ async function waitForEvent(
   }
 }
 
-test("GET /events/stream delivers booking create and update events to the affected users", async () => {
+test("GET /events/stream delivers booking and chat events to the affected users", async () => {
   const tokenToUid = new Map([
     ["buyer-token", "buyer-firebase-uid"],
     ["seller-token", "seller-firebase-uid"],
@@ -181,6 +181,97 @@ test("GET /events/stream delivers booking create and update events to the affect
     assert.deepEqual(buyerUpdateEvent.data.data, {
       booking_id: bookingId,
       status: "accepted"
+    });
+
+    const sellerChatCreatedEvent = await waitForEvent(
+      sellerReader,
+      decoder,
+      sellerState,
+      "chat.created"
+    );
+    const buyerChatCreatedEvent = await waitForEvent(
+      buyerReader,
+      decoder,
+      buyerState,
+      "chat.created"
+    );
+
+    assert.equal(sellerChatCreatedEvent.event, "chat.created");
+    assert.equal(buyerChatCreatedEvent.event, "chat.created");
+    assert.equal(
+      typeof sellerChatCreatedEvent.data.data.chat_id,
+      "string"
+    );
+    assert.equal(
+      sellerChatCreatedEvent.data.data.chat_id,
+      buyerChatCreatedEvent.data.data.chat_id
+    );
+
+    const chatId = sellerChatCreatedEvent.data.data.chat_id as string;
+
+    const sendMessageResponse = await testApp.app.inject({
+      method: "POST",
+      url: `/chats/${chatId}/messages`,
+      headers: {
+        authorization: "Bearer buyer-token",
+        "x-api-version": testApp.apiVersion
+      },
+      payload: {
+        body: "Hello from realtime"
+      }
+    });
+
+    assert.equal(sendMessageResponse.statusCode, 201);
+    const { id: messageId } = sendMessageResponse.json() as { id: string };
+
+    const sellerMessageEvent = await waitForEvent(
+      sellerReader,
+      decoder,
+      sellerState,
+      "chat.message_created"
+    );
+    const buyerMessageEvent = await waitForEvent(
+      buyerReader,
+      decoder,
+      buyerState,
+      "chat.message_created"
+    );
+
+    assert.equal(sellerMessageEvent.event, "chat.message_created");
+    assert.deepEqual(sellerMessageEvent.data.data, {
+      chat_id: chatId,
+      message_id: messageId,
+      sender_user_id: buyer.userId
+    });
+    assert.equal(buyerMessageEvent.event, "chat.message_created");
+    assert.deepEqual(buyerMessageEvent.data.data, {
+      chat_id: chatId,
+      message_id: messageId,
+      sender_user_id: buyer.userId
+    });
+
+    const markReadResponse = await testApp.app.inject({
+      method: "POST",
+      url: `/chats/${chatId}/read`,
+      headers: {
+        authorization: "Bearer seller-token",
+        "x-api-version": testApp.apiVersion
+      }
+    });
+
+    assert.equal(markReadResponse.statusCode, 200);
+
+    const sellerReadEvent = await waitForEvent(
+      sellerReader,
+      decoder,
+      sellerState,
+      "chat.read_updated"
+    );
+
+    assert.equal(sellerReadEvent.event, "chat.read_updated");
+    assert.deepEqual(sellerReadEvent.data.data, {
+      chat_id: chatId,
+      reader_user_id: seller.userId
     });
 
   } finally {
