@@ -86,7 +86,7 @@ For local pre-build verification, run:
 npm run build:local
 ```
 
-This keeps Docker-backed integration separate from hosted builds while still giving local development a one-command full verification path: build first, then integration.
+This keeps Docker-backed integration and remote schema drift checks separate from hosted builds while still giving local development a one-command full verification path: build first, then integration, then remote schema comparison.
 
 ## Integration tests
 
@@ -127,6 +127,11 @@ Run the full local verification path with:
 ```bash
 npm run build:local
 ```
+
+`npm run build:local` now runs:
+- `npm run build`
+- `npm run test:integration`
+- `npm run test:schema:drift`
 
 Current setup details:
 - The disposable database is bootstrapped from `src/db/schema.sql`.

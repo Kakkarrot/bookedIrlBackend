@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "npm run test:unit && tsc",
-    "build:local": "npm run build && npm run test:integration",
+    "build:local": "npm run build && npm run test:integration && npm run test:schema:drift",
     "start": "node dist/index.js",
     "test:schema:drift": "node --import tsx scripts/check-schema-drift.ts",
     "test:unit": "node --import tsx --test tests/unit/**/*.test.ts",

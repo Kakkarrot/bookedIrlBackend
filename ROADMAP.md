@@ -69,6 +69,10 @@
 - `GET /events/stream`
   - SSE realtime stream is implemented with integration coverage for booking and chat events
 
+### Test Coverage
+- schema drift check
+  - local-vs-remote schema drift verification is implemented via `npm run test:schema:drift`
+
 ## Planned
 
 ### Push
@@ -78,8 +82,6 @@
   - evaluate migration from direct APNs delivery to Firebase Cloud Messaging
 
 ### Test Coverage
-- schema based integration tests
-  - local-vs-remote schema drift command is implemented via `npm run test:schema:drift`
 - add integration-style route coverage for `POST /uploads/photos/sign`
   - valid sign request
   - invalid content type rejection

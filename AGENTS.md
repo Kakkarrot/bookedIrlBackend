@@ -64,7 +64,7 @@ Clients should not bypass it for business data or realtime state.
 - `npm run build`
   - runs lightweight unit tests, then `tsc`
 - `npm run build:local`
-  - runs `npm run build` first, then the Docker-backed integration suite
+  - runs `npm run build` first, then the Docker-backed integration suite, then the remote schema drift check
 - `npm run test:unit`
   - covers pure seams such as request/version guards and realtime event builders
 - `npm run test:integration`
