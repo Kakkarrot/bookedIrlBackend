@@ -1,6 +1,6 @@
-import dotenv from "dotenv";
+import * as dotenv from "dotenv";
 import { Pool } from "pg";
-import { createTemporaryPostgresRuntime } from "../src/db/postgisRuntime";
+import { createTemporaryPostgresRuntime } from "../tests/helpers/postgisRuntime";
 import { diffSchemaManifest } from "../src/db/schemaManifestDiff";
 import { readSchemaManifest } from "../src/db/schemaManifest";
 

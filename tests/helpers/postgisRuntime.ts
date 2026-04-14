@@ -19,7 +19,7 @@ export type TemporaryPostgresRuntime = {
   close: () => Promise<void>;
 };
 
-const schemaPath = path.resolve(__dirname, "schema.sql");
+const schemaPath = path.resolve(__dirname, "../../src/db/schema.sql");
 
 function buildDatabaseUrl(baseDatabaseUrl: string, databaseName: string) {
   const url = new URL(baseDatabaseUrl);

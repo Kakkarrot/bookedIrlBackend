@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { Pool } from "pg";
-import { createTemporaryPostgresRuntime } from "../../../src/db/postgisRuntime";
+import { createTemporaryPostgresRuntime } from "../../helpers/postgisRuntime";
 
 export type IntegrationHarness = {
   pool: Pool;
