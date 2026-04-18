@@ -81,6 +81,15 @@
   - add backend integration coverage
   - evaluate migration from direct APNs delivery to Firebase Cloud Messaging
 
+### Bookings
+- remove the unused `note` column from bookings
+
+### Profile
+- reduce the maximum number of profile photos from 6 to 3
+
+### Services
+- add backend support for up to 3 photos per service
+
 ### Test Coverage
 - add integration-style route coverage for `POST /uploads/photos/sign`
   - valid sign request
