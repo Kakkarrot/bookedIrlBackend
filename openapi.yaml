@@ -640,6 +640,7 @@ components:
           type: boolean
         photos:
           type: array
+          maxItems: 3
           items:
             type: string
         socialLinks:
@@ -659,6 +660,7 @@ components:
       properties:
         photos:
           type: array
+          maxItems: 3
           items:
             type: string
       required: [photos]
@@ -668,6 +670,7 @@ components:
       properties:
         files:
           type: array
+          maxItems: 3
           items:
             type: object
             properties:
@@ -700,10 +703,12 @@ components:
       properties:
         paths:
           type: array
+          maxItems: 3
           items:
             type: string
         urls:
           type: array
+          maxItems: 3
           items:
             type: string
       additionalProperties: false

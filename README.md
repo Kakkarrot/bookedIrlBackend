@@ -37,7 +37,7 @@ The OpenAPI spec is served at `GET /openapi.yaml` for client generation.
 - Auth: login/sign-up via Firebase ID tokens for Google or Apple providers.
 - User profile lookup: `GET /users/:userId` returns a user's profile, photos, social links, and services for any existing user (private fields omitted for non-self). Discoverability only affects discover/search surfaces, not direct profile fetches.
 - Profile updates: `POST /user` updates any user profile field plus photos, social links, and location for the authenticated user.
-- User photos update: `POST /user/photos` replaces the authenticated user's photo URLs (max 6).
+- User photos update: `POST /user/photos` replaces the authenticated user's photo URLs (max 3).
 - Photo uploads: `POST /uploads/photos/sign` returns signed upload URLs and public URLs for direct-to-storage uploads (Supabase Storage).
 - Photo deletions: `POST /uploads/photos/delete` deletes stored photos by path or public URL.
 - Username updates return `409 { "error": "username_taken" }` on duplicates.

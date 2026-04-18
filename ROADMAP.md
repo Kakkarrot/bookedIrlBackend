@@ -28,6 +28,7 @@
   - batched public user photo fetch is implemented
 - `POST /user/photos`
   - authenticated user photo replacement is implemented
+  - profile photo support is capped at 3 photos
 
 ### Uploads
 - `POST /uploads/photos/sign`
@@ -92,7 +93,6 @@
 - remove the unused `note` column from bookings
 
 ### Profile
-- reduce the maximum number of profile photos from 6 to 3
 - investigate whether serving only one public original photo URL per profile image is forcing iOS discover and profile surfaces to download larger assets than they need
 
 ### Uploads

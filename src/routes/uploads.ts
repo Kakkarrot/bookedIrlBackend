@@ -22,12 +22,12 @@ const signSchema = z.object({
       })
     )
     .min(1)
-    .max(6)
+    .max(3)
 });
 
 const deleteSchema = z.object({
-  paths: z.array(z.string().min(1)).max(6).optional(),
-  urls: z.array(z.string().url()).max(6).optional()
+  paths: z.array(z.string().min(1)).max(3).optional(),
+  urls: z.array(z.string().url()).max(3).optional()
 });
 
 function sanitizeFilename(filename: string) {

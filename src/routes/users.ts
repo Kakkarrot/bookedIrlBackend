@@ -40,7 +40,7 @@ const updateUserSchema = z.object({
   onboardingStep: z.string().max(32).optional(),
   intentLooking: z.boolean().optional(),
   intentOffering: z.boolean().optional(),
-  photos: z.array(z.string().url()).max(6).optional(),
+  photos: z.array(z.string().url()).max(3).optional(),
   socialLinks: z.array(z.string().url()).max(10).optional(),
   location: z
     .object({
@@ -51,7 +51,7 @@ const updateUserSchema = z.object({
 });
 
 const updatePhotosSchema = z.object({
-  photos: z.array(z.string().url()).max(6)
+  photos: z.array(z.string().url()).max(3)
 });
 
 const listPhotosSchema = z.object({
