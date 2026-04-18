@@ -104,6 +104,8 @@
 - decide whether image variants should be produced as stored derivatives at upload time or as reliable storage/CDN transform URLs
 - make photo variant URLs stable and cache-friendly so clients can cache aggressively and only invalidate when a user replaces a photo
 - update OpenAPI and backend photo response shapes if variant URLs become part of the public contract
+- split storage ownership between profile photos and service photos so service media no longer uses the user-photo bucket
+- add a dedicated service-photo storage bucket and keep that distinction backend-owned rather than inferred by clients
 
 ### Services
 - refactor the duplicated ordered-photo persistence and hydration logic shared by user and service photo flows into small backend helpers while keeping the user and service APIs separate by design
