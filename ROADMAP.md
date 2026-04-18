@@ -93,6 +93,16 @@
 
 ### Profile
 - reduce the maximum number of profile photos from 6 to 3
+- investigate whether serving only one public original photo URL per profile image is forcing iOS discover and profile surfaces to download larger assets than they need
+
+### Uploads
+- evolve the photo delivery contract beyond a single original `publicUrl` so app clients can request app-facing variants instead of treating the uploaded near-original file as the default render asset
+- evaluate whether profile photos should expose just two app-facing sizes for now:
+  - `thumb` for avatars and other small surfaces
+  - `display` for discover cards and profile/public-profile carousels
+- decide whether image variants should be produced as stored derivatives at upload time or as reliable storage/CDN transform URLs
+- make photo variant URLs stable and cache-friendly so clients can cache aggressively and only invalidate when a user replaces a photo
+- update OpenAPI and backend photo response shapes if variant URLs become part of the public contract
 
 ### Services
 - add backend support for up to 3 photos per service
