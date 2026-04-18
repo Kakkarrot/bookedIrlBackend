@@ -4,6 +4,7 @@ import { buildDecodedToken, createTestApp } from "./helpers/testApp";
 import {
   createPhoto,
   createService,
+  createServicePhoto,
   createUserWithIdentity
 } from "./helpers/factories";
 
@@ -34,6 +35,60 @@ async function createUsersTestContext() {
 
   return { testApp, viewer };
 }
+
+test("GET /user/me returns services with photos present even when a service has no photos", async () => {
+  const { testApp, viewer } = await createUsersTestContext();
+
+  try {
+    const withPhotos = await createService(testApp.pool, {
+      userId: viewer.userId,
+      title: "Service With Photos",
+      isActive: true
+    });
+    await createServicePhoto(testApp.pool, {
+      serviceId: withPhotos.serviceId,
+      url: "https://example.com/service-photo.jpg"
+    });
+    const withoutPhotos = await createService(testApp.pool, {
+      userId: viewer.userId,
+      title: "Service Without Photos",
+      isActive: false
+    });
+
+    const response = await testApp.app.inject({
+      method: "GET",
+      url: "/user/me",
+      headers: {
+        authorization: "Bearer viewer-token",
+        "x-api-version": testApp.apiVersion
+      }
+    });
+
+    assert.equal(response.statusCode, 200);
+    const body = response.json() as {
+      id: string;
+      services: Array<{
+        id: string;
+        title: string;
+        photos: Array<{ url: string; sort_order: number }>;
+      }>;
+    };
+
+    assert.equal(body.id, viewer.userId);
+
+    const serviceWithPhotos = body.services.find((service) => service.id === withPhotos.serviceId);
+    const serviceWithoutPhotos = body.services.find((service) => service.id === withoutPhotos.serviceId);
+
+    assert.ok(serviceWithPhotos);
+    assert.ok(serviceWithoutPhotos);
+    assert.deepEqual(serviceWithPhotos?.photos, [
+      { url: "https://example.com/service-photo.jpg", sort_order: 0 }
+    ]);
+    assert.deepEqual(serviceWithoutPhotos?.photos, []);
+  } finally {
+    await testApp.close();
+  }
+});
 
 test("GET /users/:userId returns the full self profile including private fields and inactive services", async () => {
   const { testApp, viewer } = await createUsersTestContext();
