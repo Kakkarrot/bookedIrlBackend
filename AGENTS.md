@@ -61,6 +61,7 @@ Clients should not bypass it for business data or realtime state.
 
 ## Testing
 
+- Do not run backend builds or tests from agent workflows in this repo; the user runs verification manually.
 - `npm run build`
   - runs lightweight unit tests, then `tsc`
 - `npm run build:local`
