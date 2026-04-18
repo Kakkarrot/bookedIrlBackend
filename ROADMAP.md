@@ -75,6 +75,13 @@
 
 ## Planned
 
+### Chats
+- add paginated message fetching for `GET /chats/:id/messages` so older chat history can load incrementally instead of being capped to the latest window
+
+### Realtime
+- investigate why live chat updates sometimes arrive on an apparent ~5 second polling cadence instead of near-instant SSE invalidation
+- message writes already reach the backend and Postgres immediately; keep this investigation focused on downstream realtime publish, delivery, or client refresh latency rather than database persistence
+
 ### Push
 - `POST /push/register`
   - validate the endpoint end-to-end in TestFlight
