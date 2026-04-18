@@ -8,6 +8,7 @@ const createServiceSchema = z.object({
   description: z.string().max(500).optional(),
   priceDollars: z.number().int().min(1).max(9999),
   durationMinutes: z.number().int().min(15).max(9999),
+  photos: z.array(z.string().url()).max(3).optional(),
   isActive: z.boolean().optional()
 });
 
@@ -16,6 +17,7 @@ const updateServiceSchema = z.object({
   description: z.string().max(500).optional(),
   priceDollars: z.number().int().min(1).max(9999).optional(),
   durationMinutes: z.number().int().min(15).max(9999).optional(),
+  photos: z.array(z.string().url()).max(3).optional(),
   isActive: z.boolean().optional()
 });
 
@@ -27,8 +29,62 @@ const listServicesSchema = z.object({
   userIds: z.string().optional()
 });
 
+type ServiceRow = {
+  id: string;
+  user_id: string;
+  title: string;
+  description: string | null;
+  price_dollars: number;
+  duration_minutes: number;
+  is_active: boolean;
+};
+
+type ServicePhotoRow = {
+  service_id: string;
+  url: string;
+  sort_order: number;
+};
+
 export async function serviceRoutes(app: FastifyInstance) {
   const db = app.dbPool;
+
+  async function replaceServicePhotos(
+    client: import("pg").PoolClient,
+    serviceId: string,
+    photos: string[]
+  ) {
+    await client.query("DELETE FROM service_photos WHERE service_id = $1", [serviceId]);
+    for (const [index, url] of photos.entries()) {
+      await client.query(
+        "INSERT INTO service_photos (id, service_id, url, sort_order) VALUES ($1, $2, $3, $4)",
+        [randomUUID(), serviceId, url, index]
+      );
+    }
+  }
+
+  async function attachPhotos(rows: ServiceRow[]) {
+    if (!rows.length) {
+      return [];
+    }
+
+    const serviceIds = rows.map((row) => row.id);
+    const photoResult = await db.query(
+      "SELECT service_id, url, sort_order FROM service_photos WHERE service_id = ANY($1::uuid[]) ORDER BY service_id, sort_order",
+      [serviceIds]
+    );
+
+    const photosByService = new Map<string, Array<{ url: string; sort_order: number }>>();
+    for (const row of photoResult.rows as ServicePhotoRow[]) {
+      const list = photosByService.get(row.service_id) ?? [];
+      list.push({ url: row.url, sort_order: row.sort_order });
+      photosByService.set(row.service_id, list);
+    }
+
+    return rows.map((row) => ({
+      ...row,
+      photos: photosByService.get(row.id) ?? []
+    }));
+  }
 
   app.get("/services", async (request, reply) => {
     const auth = await requireUser(request, reply);
@@ -57,7 +113,7 @@ export async function serviceRoutes(app: FastifyInstance) {
           [auth.userId]
         );
 
-    reply.send(result.rows);
+    reply.send(await attachPhotos(result.rows as ServiceRow[]));
   });
 
   app.get("/service/:serviceId", async (request, reply) => {
@@ -88,7 +144,8 @@ export async function serviceRoutes(app: FastifyInstance) {
       return;
     }
 
-    reply.send(result.rows[0]);
+    const [service] = await attachPhotos(result.rows as ServiceRow[]);
+    reply.send(service);
   });
 
   app.post("/service", async (request, reply) => {
@@ -107,19 +164,30 @@ export async function serviceRoutes(app: FastifyInstance) {
     }
 
     const serviceId = randomUUID();
+    const client = await db.connect();
 
-    await db.query(
-      "INSERT INTO services (id, user_id, title, description, price_dollars, duration_minutes, is_active) VALUES ($1, $2, $3, $4, $5, $6, $7)",
-      [
-        serviceId,
-        auth.userId,
-        payload.title,
-        payload.description ?? null,
-        payload.priceDollars,
-        payload.durationMinutes,
-        payload.isActive ?? true
-      ]
-    );
+    try {
+      await client.query("BEGIN");
+      await client.query(
+        "INSERT INTO services (id, user_id, title, description, price_dollars, duration_minutes, is_active) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+        [
+          serviceId,
+          auth.userId,
+          payload.title,
+          payload.description ?? null,
+          payload.priceDollars,
+          payload.durationMinutes,
+          payload.isActive ?? true
+        ]
+      );
+      await replaceServicePhotos(client, serviceId, payload.photos ?? []);
+      await client.query("COMMIT");
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
 
     reply.code(201).send({ id: serviceId });
   });
@@ -146,24 +214,38 @@ export async function serviceRoutes(app: FastifyInstance) {
       return;
     }
 
-    await db.query(
-      `UPDATE services
-       SET title = COALESCE($1, title),
-           description = COALESCE($2, description),
-           price_dollars = COALESCE($3, price_dollars),
-           duration_minutes = COALESCE($4, duration_minutes),
-           is_active = COALESCE($5, is_active),
-           updated_at = now()
-       WHERE id = $6`,
-      [
-        payload.title ?? null,
-        payload.description ?? null,
-        payload.priceDollars ?? null,
-        payload.durationMinutes ?? null,
-        payload.isActive ?? null,
-        params.serviceId
-      ]
-    );
+    const client = await db.connect();
+
+    try {
+      await client.query("BEGIN");
+      await client.query(
+        `UPDATE services
+         SET title = COALESCE($1, title),
+             description = COALESCE($2, description),
+             price_dollars = COALESCE($3, price_dollars),
+             duration_minutes = COALESCE($4, duration_minutes),
+             is_active = COALESCE($5, is_active),
+             updated_at = now()
+         WHERE id = $6`,
+        [
+          payload.title ?? null,
+          payload.description ?? null,
+          payload.priceDollars ?? null,
+          payload.durationMinutes ?? null,
+          payload.isActive ?? null,
+          params.serviceId
+        ]
+      );
+      if (payload.photos) {
+        await replaceServicePhotos(client, params.serviceId, payload.photos);
+      }
+      await client.query("COMMIT");
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
 
     reply.send({ ok: true });
   });
@@ -192,5 +274,4 @@ export async function serviceRoutes(app: FastifyInstance) {
     await db.query("DELETE FROM services WHERE id = $1", [params.serviceId]);
     reply.send({ ok: true });
   });
-
 }

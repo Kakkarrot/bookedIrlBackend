@@ -60,6 +60,16 @@ const listPhotosSchema = z.object({
 
 type NearbyUserRow = { id: string };
 type PhotoRow = { user_id: string; url: string; sort_order: number };
+type ServiceRow = {
+  id: string;
+  user_id: string;
+  title: string;
+  description: string | null;
+  price_dollars: number;
+  duration_minutes: number;
+  is_active: boolean;
+};
+type ServicePhotoRow = { service_id: string; url: string; sort_order: number };
 
 const userIdParamsSchema = z.object({
   userId: z.string().uuid()
@@ -91,6 +101,30 @@ export async function userRoutes(app: FastifyInstance) {
         [randomUUID(), userId, url, index]
       );
     }
+  }
+
+  async function attachServicePhotos(rows: ServiceRow[]) {
+    if (!rows.length) {
+      return [];
+    }
+
+    const serviceIds = rows.map((row) => row.id);
+    const photoResult = await db.query(
+      "SELECT service_id, url, sort_order FROM service_photos WHERE service_id = ANY($1::uuid[]) ORDER BY service_id, sort_order",
+      [serviceIds]
+    );
+
+    const photosByService = new Map<string, Array<{ url: string; sort_order: number }>>();
+    for (const row of photoResult.rows as ServicePhotoRow[]) {
+      const list = photosByService.get(row.service_id) ?? [];
+      list.push({ url: row.url, sort_order: row.sort_order });
+      photosByService.set(row.service_id, list);
+    }
+
+    return rows.map((row) => ({
+      ...row,
+      photos: photosByService.get(row.id) ?? []
+    }));
   }
 
   app.get("/user/me", async (request, reply) => {
@@ -126,7 +160,7 @@ export async function userRoutes(app: FastifyInstance) {
       ...userResult.rows[0],
       photos: photos.rows,
       socialLinks: socialLinks.rows,
-      services: services.rows
+      services: await attachServicePhotos(services.rows as ServiceRow[])
     });
   });
 
@@ -171,7 +205,7 @@ export async function userRoutes(app: FastifyInstance) {
         ...baseUser,
         photos: photos.rows,
         socialLinks: socialLinks.rows,
-        services: services.rows
+        services: await attachServicePhotos(services.rows as ServiceRow[])
       });
       return;
     }
@@ -181,7 +215,7 @@ export async function userRoutes(app: FastifyInstance) {
       ...publicUser,
       photos: photos.rows,
       socialLinks: socialLinks.rows,
-      services: services.rows
+      services: await attachServicePhotos(services.rows as ServiceRow[])
     });
   });
 

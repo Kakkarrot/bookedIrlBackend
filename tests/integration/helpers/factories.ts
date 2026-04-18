@@ -18,6 +18,12 @@ type ServiceFactoryInput = {
   isActive?: boolean;
 };
 
+type ServicePhotoFactoryInput = {
+  serviceId: string;
+  url?: string;
+  sortOrder?: number;
+};
+
 type PhotoFactoryInput = {
   userId: string;
   url?: string;
@@ -80,6 +86,25 @@ export async function createService(pool: Pool, input: ServiceFactoryInput) {
   );
 
   return { serviceId };
+}
+
+export async function createServicePhoto(pool: Pool, input: ServicePhotoFactoryInput) {
+  const photoId = randomUUID();
+
+  await pool.query(
+    `
+    INSERT INTO service_photos (id, service_id, url, sort_order)
+    VALUES ($1, $2, $3, $4)
+    `,
+    [
+      photoId,
+      input.serviceId,
+      input.url ?? `https://example.com/service-${photoId}.jpg`,
+      input.sortOrder ?? 0
+    ]
+  );
+
+  return { photoId };
 }
 
 export async function createPhoto(pool: Pool, input: PhotoFactoryInput) {

@@ -4,6 +4,7 @@ import { buildDecodedToken, createTestApp } from "./helpers/testApp";
 import {
   createPhoto,
   createService,
+  createServicePhoto,
   createUserWithIdentity
 } from "./helpers/factories";
 
@@ -67,6 +68,10 @@ test("POST /service creates a service for the authenticated user", async () => {
         description: "Studio portrait photography",
         priceDollars: 175,
         durationMinutes: 90,
+        photos: [
+          "https://example.com/service-1.jpg",
+          "https://example.com/service-2.jpg"
+        ],
         isActive: true
       }
     });
@@ -91,6 +96,16 @@ test("POST /service creates a service for the authenticated user", async () => {
     assert.equal(created.rows[0].price_dollars, 175);
     assert.equal(created.rows[0].duration_minutes, 90);
     assert.equal(created.rows[0].is_active, true);
+
+    const servicePhotos = await testApp.pool.query(
+      "SELECT url, sort_order FROM service_photos WHERE service_id = $1 ORDER BY sort_order",
+      [body.id]
+    );
+
+    assert.deepEqual(servicePhotos.rows, [
+      { url: "https://example.com/service-1.jpg", sort_order: 0 },
+      { url: "https://example.com/service-2.jpg", sort_order: 1 }
+    ]);
   } finally {
     await testApp.close();
   }
@@ -160,15 +175,18 @@ test("GET /services returns the authenticated user's own services when userIds i
       user_id: string;
       title: string;
       is_active: boolean;
+      photos: Array<{ url: string; sort_order: number }>;
     }>;
 
     assert.equal(body.length, 2);
     assert.equal(body[0].id, oldest.serviceId);
     assert.equal(body[0].title, "Oldest Owner Service");
     assert.equal(body[0].is_active, true);
+    assert.deepEqual(body[0].photos, []);
     assert.equal(body[1].id, newest.serviceId);
     assert.equal(body[1].title, "Newest Owner Service");
     assert.equal(body[1].is_active, false);
+    assert.deepEqual(body[1].photos, []);
     assert.ok(body.every((service) => service.user_id === owner.userId));
   } finally {
     await testApp.close();
@@ -281,6 +299,10 @@ test("GET /service/:serviceId returns an active public service to other users wh
       title: "Public Service",
       isActive: true
     });
+    await createServicePhoto(testApp.pool, {
+      serviceId: service.serviceId,
+      url: "https://example.com/public-service.jpg"
+    });
 
     const response = await testApp.app.inject({
       method: "GET",
@@ -292,10 +314,18 @@ test("GET /service/:serviceId returns an active public service to other users wh
     });
 
     assert.equal(response.statusCode, 200);
-    const body = response.json() as { id: string; title: string; is_active: boolean };
+    const body = response.json() as {
+      id: string;
+      title: string;
+      is_active: boolean;
+      photos: Array<{ url: string; sort_order: number }>;
+    };
     assert.equal(body.id, service.serviceId);
     assert.equal(body.title, "Public Service");
     assert.equal(body.is_active, true);
+    assert.deepEqual(body.photos, [
+      { url: "https://example.com/public-service.jpg", sort_order: 0 }
+    ]);
   } finally {
     await testApp.close();
   }
@@ -357,6 +387,10 @@ test("PATCH /service/:serviceId updates a service for the owner", async () => {
       durationMinutes: 45,
       isActive: true
     });
+    await createServicePhoto(testApp.pool, {
+      serviceId: service.serviceId,
+      url: "https://example.com/original-service-photo.jpg"
+    });
 
     const response = await testApp.app.inject({
       method: "PATCH",
@@ -370,6 +404,10 @@ test("PATCH /service/:serviceId updates a service for the owner", async () => {
         description: "Updated description",
         priceDollars: 220,
         durationMinutes: 75,
+        photos: [
+          "https://example.com/updated-service-1.jpg",
+          "https://example.com/updated-service-2.jpg"
+        ],
         isActive: false
       }
     });
@@ -392,6 +430,16 @@ test("PATCH /service/:serviceId updates a service for the owner", async () => {
     assert.equal(updated.rows[0].price_dollars, 220);
     assert.equal(updated.rows[0].duration_minutes, 75);
     assert.equal(updated.rows[0].is_active, false);
+
+    const servicePhotos = await testApp.pool.query(
+      "SELECT url, sort_order FROM service_photos WHERE service_id = $1 ORDER BY sort_order",
+      [service.serviceId]
+    );
+
+    assert.deepEqual(servicePhotos.rows, [
+      { url: "https://example.com/updated-service-1.jpg", sort_order: 0 },
+      { url: "https://example.com/updated-service-2.jpg", sort_order: 1 }
+    ]);
   } finally {
     await testApp.close();
   }

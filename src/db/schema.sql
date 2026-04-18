@@ -46,6 +46,14 @@ CREATE TABLE IF NOT EXISTS services (
   updated_at timestamptz NOT NULL DEFAULT now()
 );
 
+CREATE TABLE IF NOT EXISTS service_photos (
+  id uuid PRIMARY KEY,
+  service_id uuid NOT NULL REFERENCES services(id) ON DELETE CASCADE,
+  url text NOT NULL,
+  sort_order int NOT NULL DEFAULT 0,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
 CREATE TABLE IF NOT EXISTS user_photos (
   id uuid PRIMARY KEY,
   user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -117,6 +125,7 @@ CREATE TABLE IF NOT EXISTS push_device_tokens (
 );
 
 CREATE INDEX IF NOT EXISTS services_user_id_idx ON services(user_id);
+CREATE INDEX IF NOT EXISTS service_photos_service_id_idx ON service_photos(service_id);
 CREATE INDEX IF NOT EXISTS user_photos_user_id_idx ON user_photos(user_id);
 CREATE INDEX IF NOT EXISTS user_social_links_user_id_idx ON user_social_links(user_id);
 CREATE INDEX IF NOT EXISTS bookings_buyer_id_idx ON bookings(buyer_id);

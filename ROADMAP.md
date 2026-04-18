@@ -47,6 +47,7 @@
   - owner-only service update is implemented
 - `DELETE /service/:serviceId`
   - owner-only service delete is implemented
+  - service photo support is implemented with up to 3 ordered photos per service
 
 ### Bookings
 - `GET /bookings`
@@ -105,7 +106,7 @@
 - update OpenAPI and backend photo response shapes if variant URLs become part of the public contract
 
 ### Services
-- add backend support for up to 3 photos per service
+- refactor the duplicated ordered-photo persistence and hydration logic shared by user and service photo flows into small backend helpers while keeping the user and service APIs separate by design
 
 ### Test Coverage
 - add integration-style route coverage for `POST /uploads/photos/sign`
@@ -114,5 +115,6 @@
 - add integration-style route coverage for `POST /uploads/photos/delete`
   - invalid/no owned paths rejection
   - successful delete flow with injected storage dependency
+- extend schema drift coverage to compare backend-owned table RLS state and policy metadata; the current drift check only covers extensions, tables, columns, constraints, and indexes
 
 ## Open Questions

@@ -43,6 +43,7 @@ The OpenAPI spec is served at `GET /openapi.yaml` for client generation.
 - Username updates return `409 { "error": "username_taken" }` on duplicates.
 - Onboarding intents: `POST /user` accepts `intentLooking` and `intentOffering` booleans.
 - Create service for current user: `POST /service` creates a new service for the authenticated user.
+- Service payloads now support up to 3 photo URLs and service reads return ordered `photos`.
 - Service create payload supports optional `isActive` (defaults to `true` when omitted).
 - Service detail: `GET /service/:serviceId` returns a service (owner or public if active + discoverable).
 - Update service: `PATCH /service/:serviceId` updates a service (owner only).

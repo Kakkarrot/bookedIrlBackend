@@ -771,7 +771,12 @@ components:
           type: integer
         is_active:
           type: boolean
-      required: [id, user_id, title, price_dollars, duration_minutes, is_active]
+        photos:
+          type: array
+          maxItems: 3
+          items:
+            $ref: "#/components/schemas/ServicePhotoItem"
+      required: [id, user_id, title, price_dollars, duration_minutes, is_active, photos]
     ServiceCreate:
       type: object
       properties:
@@ -784,6 +789,11 @@ components:
           type: integer
         durationMinutes:
           type: integer
+        photos:
+          type: array
+          maxItems: 3
+          items:
+            type: string
         isActive:
           type: boolean
       required: [title, priceDollars, durationMinutes]
@@ -799,9 +809,22 @@ components:
           type: integer
         durationMinutes:
           type: integer
+        photos:
+          type: array
+          maxItems: 3
+          items:
+            type: string
         isActive:
           type: boolean
       additionalProperties: false
+    ServicePhotoItem:
+      type: object
+      properties:
+        url:
+          type: string
+        sort_order:
+          type: integer
+      required: [url]
     Booking:
       type: object
       properties:
