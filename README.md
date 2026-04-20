@@ -2,10 +2,10 @@
 
 Minimal Fastify + TypeScript scaffold for the marketplace API.
 
-Shared roadmap: `/Users/willieli/bookedIrl/ROADMAP.md`
+Roadmap: `/Users/willieli/bookedIrl/bookedIrlBackend/ROADMAP.md`
 
 Update expectation:
-- after every feature change, update the shared roadmap to mark completed work or add newly discovered feature work
+- after every feature change, update the backend roadmap to mark completed work or add newly discovered feature work
 
 ## Tech stack
 
