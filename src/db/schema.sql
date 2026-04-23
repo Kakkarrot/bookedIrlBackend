@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS users (
   id uuid PRIMARY KEY,
   display_name text,
   username text,
-  email text UNIQUE,
+  email text,
   headline text,
   bio text,
   birthday date,

@@ -92,6 +92,7 @@
 
 ### Bookings
 - remove the unused `note` column from bookings
+- send email to users on new booking
 
 ### Profile
 - investigate whether serving only one public original photo URL per profile image is forcing iOS discover and profile surfaces to download larger assets than they need

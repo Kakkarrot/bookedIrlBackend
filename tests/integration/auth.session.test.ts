@@ -37,3 +37,80 @@ test("POST /auth/session creates a user in isolated Postgres", async () => {
     await testApp.close();
   }
 });
+
+test("POST /auth/session allows duplicate emails across distinct auth identities", async () => {
+  const tokens = new Map([
+    [
+      "google-token",
+      buildDecodedToken({
+        uid: "google-user-1",
+        sub: "google-user-1",
+        email: "shared@example.com",
+        firebase: {
+          identities: {},
+          sign_in_provider: "google.com"
+        }
+      })
+    ],
+    [
+      "apple-token",
+      buildDecodedToken({
+        uid: "apple-user-1",
+        sub: "apple-user-1",
+        email: "shared@example.com",
+        firebase: {
+          identities: {},
+          sign_in_provider: "apple.com"
+        }
+      })
+    ]
+  ]);
+
+  const testApp = await createTestApp({
+    tokenVerifier: async (token: string) => {
+      const decoded = tokens.get(token);
+      assert.ok(decoded);
+      return decoded;
+    }
+  });
+
+  try {
+    const googleResponse = await testApp.app.inject({
+      method: "POST",
+      url: "/auth/session",
+      headers: {
+        authorization: "Bearer google-token",
+        "x-api-version": testApp.apiVersion
+      }
+    });
+
+    const appleResponse = await testApp.app.inject({
+      method: "POST",
+      url: "/auth/session",
+      headers: {
+        authorization: "Bearer apple-token",
+        "x-api-version": testApp.apiVersion
+      }
+    });
+
+    assert.equal(googleResponse.statusCode, 200);
+    assert.equal(appleResponse.statusCode, 200);
+
+    const googleBody = googleResponse.json() as { userId: string };
+    const appleBody = appleResponse.json() as { userId: string };
+    assert.notEqual(googleBody.userId, appleBody.userId);
+
+    const userResult = await testApp.pool.query<{ id: string; email: string }>(
+      "SELECT id, email FROM users WHERE email = $1 ORDER BY id",
+      ["shared@example.com"]
+    );
+
+    assert.equal(userResult.rowCount, 2);
+    assert.deepEqual(
+      userResult.rows.map((row) => row.id),
+      [googleBody.userId, appleBody.userId].sort()
+    );
+  } finally {
+    await testApp.close();
+  }
+});
